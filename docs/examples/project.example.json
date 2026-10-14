@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "id": "demo-shop",
+  "name": "Demo Headless Shop",
+  "baseUrl": "https://shop.example.com",
+  "allowedHosts": ["shop.example.com"],
+  "discovery": {
+    "sitemapUrls": ["https://shop.example.com/sitemap.xml"],
+    "seedUrls": ["https://shop.example.com/"],
+    "crawlLinks": true,
+    "maxDepth": 8,
+    "queryPolicy": {
+      "mode": "allowlist",
+      "allowedKeys": ["page"],
+      "dropTrackingKeys": ["utm_*", "gclid", "yclid"]
+    },
+    "maxUrls": 100000
+  },
+  "canonicalPolicy": {
+    "trailingSlash": "unknown",
+    "expectedScheme": "https",
+    "preferredHost": "shop.example.com",
+    "checkSelfCanonical": false
+  },
+  "http": {
+    "userAgent": "HeadlessSEOInspector/1.0 (+site-owner-diagnostic)",
+    "respectRobots": true,
+    "requestsPerSecondPerHost": 1,
+    "concurrency": 2,
+    "timeoutMs": 15000,
+    "maxResponseBytes": 5000000,
+    "maxRedirects": 8,
+    "maxRetries": 2
+  },
+  "sources": {
+    "backend": {
+      "enabled": true,
+      "type": "entity-feed-v1",
+      "endpoint": "https://feed.example.com/v1/seo/entities",
+      "allowedHosts": ["feed.example.com"],
+      "auth": {"type": "bearer", "tokenEnv": "DEMO_FEED_TOKEN"},
+      "pageSize": 500
+    }
+  },
+  "reports": {"keepLastRuns": 12, "htmlEnabled": true}
+}

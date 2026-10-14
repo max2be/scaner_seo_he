@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "snapshotId": "2026-10-14T12:00:00Z",
+  "items": [
+    {
+      "id": "sku-981", "type": "product",
+      "url": "https://shop.example.com/catalog/shoes/model-x",
+      "publicationState": "published", "expectedIndexable": true,
+      "expectedStatus": 200,
+      "canonicalUrl": "https://shop.example.com/catalog/shoes/model-x",
+      "updatedAt": "2026-10-14T11:00:00Z",
+      "data": {"title": "Model X", "sku": "MX-1", "price": 12000, "currency": "RUB", "availability": "InStock"}
+    },
+    {
+      "id": "section-14", "type": "category",
+      "url": "https://shop.example.com/catalog/shoes",
+      "publicationState": "published", "expectedIndexable": true,
+      "expectedStatus": 200
+    },
+    {
+      "id": "article-6", "type": "page",
+      "url": "https://shop.example.com/articles/select-shoes",
+      "publicationState": "published", "expectedIndexable": true
+    }
+  ],
+  "nextCursor": null
+}

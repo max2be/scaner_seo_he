@@ -3,6 +3,10 @@
 Требуется Node.js 24.19.0 (major 24), npm 11; Docker Engine + Compose v2 для контейнеров.
 Все команды из корня checkout, без worktree и глобальных npm install.
 
+Кэш npm использует стандартный путь текущего пользователя. Не фиксируйте абсолютный
+путь облачной среды в `.npmrc`: на GitHub Actions он может быть недоступен для записи.
+При необходимости задайте локальное переопределение через `npm_config_cache`.
+
 ```bash
 npm ci --ignore-scripts
 npm run check

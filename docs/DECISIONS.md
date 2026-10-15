@@ -174,3 +174,16 @@ Project PATCH replaces top-level fields/nested objects and may archive/restore i
 separate request, keeping each mutation atomic. Resume/compare/validate commands reserve
 a project; latest50 operation records and32 sessions are retained. Existing Linux flock
 and global worker pool guard all job kinds. GET comparison only reads current generations.
+
+## ADR-018 — sum1-7 branch consolidation and declaration style
+Origin main merged the independent EPIC-01 foundation (PR#1); it was not an ancestor
+of the EPIC-01…06 branch. sum1-7 includes both histories and committed EPIC-07.
+All23 add/add conflicts use the validated implementation through EPIC-07. Legacy
+server/worker entrypoints, root Compose, duplicate ESLint and mismatched Vite config
+are superseded; historical ADR/status documents move under docs/history/epic-01-foundation.
+One active build, deployment and lint configuration remain; original specifications unchanged.
+User clarified preferred style: const immediately before first use, narrow block scope,
+class fields above constructor/methods. Do not hoist initializers or weaken const en masse.
+ESLint enforces no variable/class use before definition, prefer-const/no-var and field order;
+hoisted named functions and type-only references are allowed. Scheduler callback ordering
+is clarified without changing cancellation/permit behavior. See docs/SUM1-7-RESULTS.md.

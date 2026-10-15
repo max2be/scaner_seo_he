@@ -21,6 +21,8 @@ The discovery CLI imports sitemap/feed URLs and crawls source HTML with safe HTT
 
 See [development runbook](docs/development.md), [architecture decisions](docs/DECISIONS.md), and [skill security review](docs/skill-security.md).
 
+EPIC-01…07 branch consolidation and verification: [sum1-7 results](docs/SUM1-7-RESULTS.md).
+
 ```bash
 npm ci --ignore-scripts
 npm run check

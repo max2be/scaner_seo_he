@@ -5,4 +5,5 @@ Use existing isolated checkout; no Git worktrees unless explicitly requested.
 Never send project content, secrets or logs to third-party services via skills.
 Handoff sync, telemetry, auto-downloaded skills, external MCP integrations are disabled.
 Review installed skills before use and after updates. Current scope: EPIC-07, explicitly authorized by the user after EPIC-06 validation. Preserve completed EPIC-05 work. Do not start EPIC-08 in this iteration.
+Local variables: use const directly before first use in the smallest useful block; use let only for reassignment. Put class fields before constructors/methods. Keep initializer evaluation order. Named function declarations may be hoisted; type-only references are exempt. Enforced by ESLint.
 Run npm ci, npm run check. See docs/development.md for startup and Docker smoke.

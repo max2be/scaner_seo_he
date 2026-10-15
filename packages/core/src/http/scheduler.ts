@@ -12,8 +12,8 @@ export class RequestScheduler {
     signal?.throwIfAborted();
     while (this.active >= this.concurrency) {
       await new Promise<void>((resolve, reject) => {
-        const wake = () => { signal?.removeEventListener('abort', abort); resolve(); };
         const abort = () => { this.waiting = this.waiting.filter(item => item !== wake); reject(signal?.reason); };
+        function wake() { signal?.removeEventListener('abort', abort); resolve(); }
         this.waiting.push(wake); signal?.addEventListener('abort', abort, { once: true });
       });
       signal?.throwIfAborted();

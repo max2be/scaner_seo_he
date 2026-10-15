@@ -10,10 +10,10 @@ export class FileLease {
   private released = false;
   private alive = true;
   private lost?: () => void;
-  onLost(callback: () => void) { this.lost = callback; this.assertHeld(); }
   private constructor(private child: ChildProcessWithoutNullStreams) {
     child.once('exit', () => { this.alive = false; if (!this.released) this.lost?.(); });
   }
+  onLost(callback: () => void) { this.lost = callback; this.assertHeld(); }
   assertHeld() { if (!this.alive || this.released) throw new Error('storage_lock_lost'); }
   static async acquire(path: string): Promise<FileLease> {
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });

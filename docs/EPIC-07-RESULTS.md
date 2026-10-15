@@ -113,4 +113,5 @@ findings/evidence/downloads/diff UI поверх готовых DTO. Обяза�
 empty page+cursor и202 operation polling; не запускать crawler из frontend/API.
 После E08 — E09 эксплуатационный TLS/security/acceptance pass.
 
-Изменения EPIC-07 не закоммичены и не отправлены в Git; предыдущие commits сохранены.
+При последующем объединении веток EPIC-07 сохранён коммитом `cbadfc3` в `sum1-7`.
+Результаты объединения и повторной проверки: [SUM1-7-RESULTS.md](SUM1-7-RESULTS.md).

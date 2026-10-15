@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, readdir, rm, cp, rename, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ProjectConfigSchema, ScanManifestSchema, safeId, type ScanManifest, type ProjectConfig,
-  type RecoveryState, type DiscoverySummary } from '@hsi/contracts';
+  RuleProfileSchema, defaultRuleProfile, type RuleProfile, type RecoveryState, type DiscoverySummary } from '@hsi/contracts';
 import { atomicJson, syncDirectory } from './atomic.js';
 import { DurableDiscoveryStore } from './durable-discovery.js';
 import { FileLease, StorageConflict } from './locks.js';
@@ -60,8 +60,9 @@ export class ScanRepository {
     return values.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.scanId.localeCompare(a.scanId));
   }
   /** Idempotency key is the scan ID; an existing scan never changes its frozen configuration. */
-  async enqueue(input: ProjectConfig, scanId: string = randomUUID()) {
-    const project = ProjectConfigSchema.parse(input); safeId.parse(scanId);
+  async enqueue(input: ProjectConfig, scanId: string = randomUUID(), rules: RuleProfile = defaultRuleProfile()) {
+    const project = ProjectConfigSchema.parse(input); const profile = RuleProfileSchema.parse(rules); safeId.parse(scanId);
+    for (const probe of profile.unknownRouteProbes) if (!project.allowedHosts.includes(new URL(probe.url).hostname)) throw new Error('probe_host_not_allowed');
     const lease = await this.lock(project.id);
     try {
       await this.cleanupStaging(project.id, lease);
@@ -69,7 +70,8 @@ export class ScanRepository {
       const existing = current.find(v => v.scanId === scanId);
       if (existing) {
         const frozen = await this.project(project.id, scanId);
-        if (JSON.stringify(frozen) !== JSON.stringify(project)) throw new StorageConflict('idempotency_config_mismatch');
+        const frozenProfile = await this.ruleProfile(project.id, scanId);
+        if (JSON.stringify(frozen) !== JSON.stringify(project) || JSON.stringify(frozenProfile ?? defaultRuleProfile()) !== JSON.stringify(profile)) throw new StorageConflict('idempotency_config_mismatch');
         return existing;
       }
       if (current.some(v => ['queued', 'running', 'interrupted'].includes(v.status))) throw new StorageConflict('project_has_active_scan');
@@ -79,7 +81,8 @@ export class ScanRepository {
       await mkdir(path, { mode: 0o700 });
       await syncDirectory(join(this.projectPath(project.id), 'scans'));
       await atomicJson(join(path, 'project.json'), project);
-      const store = await DurableDiscoveryStore.create(path, initialRecovery(project)); await store.close();
+      await atomicJson(join(path, 'rules.json'), profile);
+      const store = await DurableDiscoveryStore.create(path, initialRecovery(project), true); await store.close();
       const manifest = ScanManifestSchema.parse({ schemaVersion: '1.0', projectId: project.id, scanId, status: 'queued', createdAt: now(),
         discovered: 0, queued: 0, fetched: 0, skippedRobots: 0, fetchErrors: 0, failedSources: 0, truncated: false,
         discoveryComplete: false, scanComplete: false, reasons: [] });
@@ -91,6 +94,10 @@ export class ScanRepository {
   async project(projectId: string, scanId: string) {
     const value = ProjectConfigSchema.parse(JSON.parse(await readFile(join(this.scanPath(projectId, scanId), 'project.json'), 'utf8')));
     if (value.id !== projectId) throw new Error('project_identity_mismatch'); return value;
+  }
+  async ruleProfile(projectId: string, scanId: string): Promise<RuleProfile | undefined> {
+    try { return RuleProfileSchema.parse(JSON.parse(await readFile(join(this.scanPath(projectId, scanId), 'rules.json'), 'utf8'))); }
+    catch (error) { if (isMissing(error)) return undefined; throw error; }
   }
   async transition(value: ScanManifest, status: ScanManifest['status'], reason?: string, summary?: DiscoverySummary) {
     if (!transitions[value.status].includes(status)) throw new Error('invalid_scan_transition');

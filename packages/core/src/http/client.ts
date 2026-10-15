@@ -11,7 +11,7 @@ import { RequestScheduler } from './scheduler.js';
 type Chain = Extract<HttpFetchMetadata, { status: 'fetched' }>['redirectChain'];
 type FetchOptions = { signal?: AbortSignal; confirmExpectedMissing?: boolean };
 export type HttpFetchResult =
-  | (Extract<HttpFetchMetadata, { status: 'fetched' }> & { readonly body: Buffer })
+  | (Extract<HttpFetchMetadata, { status: 'fetched' }> & { readonly body: Buffer; readonly xRobotsTag?: readonly string[]; readonly responseUrlRaw?: string })
   | (Exclude<HttpFetchMetadata, { status: 'fetched' }> & { readonly body?: never });
 interface Dependencies { resolver?: Resolver; transport?: Transport; random?: () => number }
 interface RobotsTrace { attempts: HttpAttempt[]; origins: Set<string> }
@@ -210,6 +210,8 @@ export class SafeHttpClient {
           requestProfile: 'default', bodySha256: response.bodySha256 ?? hash(response.body) } });
       if (metadata.status !== 'fetched') throw new HttpFailure('invalid_result');
       // Parser input must not accidentally enter JSON logs/artifacts.
+      Object.defineProperty(metadata, 'responseUrlRaw', { value: page.url.href, enumerable: false });
+      Object.defineProperty(metadata, 'xRobotsTag', { value: response.xRobotsTag ?? [], enumerable: false });
       return Object.defineProperty(metadata, 'body', { value: response.body, enumerable: false }) as HttpFetchResult;
     } catch (error) {
       const code = options.signal?.aborted ? 'canceled' : errorCode(error);

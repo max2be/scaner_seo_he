@@ -9,6 +9,8 @@ import { SourceFailure } from './errors.js';
 export interface DiscoveryOptions {
   store: DiscoveryStore;
   recovery?: DiscoveryRecovery;
+  additionalSeeds?: readonly string[];
+  confirmExpectedMissing?: (record: DiscoveryRecord) => Promise<boolean>;
   createSpool: () => Promise<ResponseSpool>;
   client?: SafeHttpClient;
   backendClient?: SafeHttpClient;
@@ -151,12 +153,13 @@ export async function discover(input: ProjectConfig, options: DiscoveryOptions):
     }
     if (recovery && phase === 'backend') { phase = 'seeds'; await commit(); }
     if (!recovery || phase === 'seeds') {
-      for (const url of project.discovery.seedUrls) await add(url, project.baseUrl, 0, 'seed');
+      for (const url of [...project.discovery.seedUrls, ...(options.additionalSeeds ?? [])]) await add(url, project.baseUrl, 0, 'seed');
       if (recovery) { phase = 'crawl'; await commit(); }
     }
     for (let record = await store.next(); record; record = await store.next()) {
       signal?.throwIfAborted();
-      const result = await client.fetch(record.url, signal ? { signal } : {}); signal?.throwIfAborted(); processed++;
+      const confirmExpectedMissing = await options.confirmExpectedMissing?.(record) ?? false;
+      const result = await client.fetch(record.url, { ...(signal ? { signal } : {}), ...(confirmExpectedMissing ? { confirmExpectedMissing } : {}) }); signal?.throwIfAborted(); processed++;
       if (result.status === 'fetch_error') { fetchErrors++; await issue('fetch_error', 'crawl', result.errorCode, record.url); }
       else if (result.status === 'skipped_robots') skippedRobots++;
       else {

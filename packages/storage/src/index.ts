@@ -19,3 +19,5 @@ export { atomicJson, appendJsonl } from './atomic.js';
 export { DurableDiscoveryStore } from './durable-discovery.js';
 export { FileLease, StorageConflict } from './locks.js';
 export { ScanRepository, initialRecovery } from './scans.js';
+export { FileReportWriter, FileReportReader } from './report-files.js';
+export { FileDiffWriter, FileDiffReader } from './diff-files.js';

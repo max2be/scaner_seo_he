@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AnalysisProgressSchema, AnalysisEventSchema } from './seo.js';
 import { schemaVersion, nonnegative, httpUrl } from './common.js';
 import { DiscoveryIssueSchema, DiscoveryRecordSchema, DiscoverySummarySchema, ProvenanceSchema } from './discovery.js';
 import { HttpFetchResultSchema, type HttpFetchMetadata } from './http.js';
@@ -40,3 +41,20 @@ export interface DiscoveryRecovery {
   enqueueSitemap(task: SitemapTask): Promise<void>;
   nextSitemap(): Promise<SitemapTask | undefined>;
 }
+
+// v1 is immutable. Only scans explicitly created with an analysis profile use v1.1.
+export const CheckpointV11Schema = z.object({ schemaVersion: z.literal('1.1'),
+  checkpointSha256: z.string().regex(/^[a-f0-9]{64}$/), sequence: nonnegative, journalBytes: nonnegative,
+  journalSha256: z.string().regex(/^[a-f0-9]{64}$/), queueOffset: nonnegative, sitemapOffset: nonnegative,
+  count: nonnegative, state: RecoveryStateSchema, analysis: AnalysisProgressSchema,
+}).strict().superRefine((v, ctx) => {
+  if (v.state.processed > v.count || v.queueOffset !== v.state.processed * 67 ||
+    (v.state.phase === 'done' && v.count !== v.state.processed) || v.analysis.urlsAnalyzed > v.count ||
+    (v.analysis.phase === 'done' && v.analysis.urlsAnalyzed !== v.count) ||
+    (v.analysis.phase !== 'pending' && v.state.phase !== 'done'))
+    ctx.addIssue({ code: 'custom', message: 'Checkpoint analysis and discovery disagree' });
+});
+export const AnyCheckpointSchema = z.union([CheckpointSchema, CheckpointV11Schema]);
+export const DurableEventV11Schema = z.union([DurableEventSchema, AnalysisEventSchema]);
+export type AnyCheckpoint = z.infer<typeof AnyCheckpointSchema>;
+export type DurableEventV11 = z.infer<typeof DurableEventV11Schema>;

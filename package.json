@@ -21,7 +21,8 @@
     "start:worker": "node apps/worker/dist/main.js",
     "smoke": "node scripts/smoke.mjs",
     "discover": "node apps/worker/dist/discover.js",
-    "scan": "node apps/worker/dist/scan.js"
+    "scan": "node apps/worker/dist/scan.js",
+    "reports": "node apps/worker/dist/report.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

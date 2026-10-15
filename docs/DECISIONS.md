@@ -111,3 +111,41 @@ Exhausted incomplete сохраняет ошибки/лимиты; для нов
 Retention явно задан оператором, архивирует до удаления, защищает активные/pinned,
 проверяет совпадение архива после сбоя. NFS/SMB/multi-host не поддерживаются. Полный
 100k benchmark, REST/UI и cron не входят в EPIC-04.
+
+## ADR-012 — EPIC-05 analysis configuration and evidence
+Перед реализацией: новых неразрешённых противоречий PRD/ТЗ не обнаружено.
+ProjectConfig v1 остаётся неизменным. Severity overrides, порог redirect chain и явно
+заданные unknown-route probes — отдельный валидируемый rules.json, замороженный в scan.
+Случайные несуществующие URL не генерируются. Публичный HTML не исполняется; сохраняются
+ограниченные типизированные факты, hashes и безопасные структурные excerpts, не HTML body.
+X-Robots передаётся парсеру transient allowlisted headers без cookies/прочих headers.
+Entity-правила учитывают полноту фида и snapshot; P0 HTTP404/410 требует опубликованной
+expected-indexable entity и двух согласованных GET, а не истории поискового робота.
+
+## ADR-013 — EPIC-05 durable analysis and backwards compatibility
+Новые сканы используют checkpoint/WAL 1.1 с отдельным analysis cursor и типизированными
+facts/findings/errors. Reader сохраняет поддержку 1.0; legacy discovery scans не
+переинтерпретируются как SEO-аудит. Migration создаёт 1.1 для новых запусков; regression
+fixture проверяет чтение 1.0. Html facts и диагностические GET фиксируются в транзакции
+URL, findings — отдельным проходом по завершённым фактам/финальной provenance с checkpoint
+на каждый URL. Это позволяет учесть ссылку, найденную после проверки её target, и
+продолжить анализ без повторного сетевого обхода. Report/diff/UI остаются EPIC-06…08.
+
+## ADR-014 — EPIC-06 immutable report generations
+Перед реализацией: PRD/ТЗ требуют report summary в summary.json, но этот путь уже имеет
+persisted DiscoverySummary1.0. Сохраняем прежний контракт, добавляем report-summary.json
+и версионированный bundle reports/GENERATION с атомарным reports.json pointer. Findings
+для экспорта читаются из подтверждённого WAL, не из возможного незакоммиченного JSONL tail.
+Core persisted schemas1.0/1.1 не меняются, report/index/diff schemas additive1.0.
+Reports pure orchestration/formatting через ports; file I/O/indexes в storage, composition
+в worker. Report failure не объявляет scan completed; resume может повторить exports без GET.
+
+## ADR-015 — EPIC-06 seek indexes and conservative comparison
+JSONL byte offsets + bounded ID hash-trie leaves; все данные на диске, нет Map всего каталога.
+Фильтры используют селективный pointer index и ограниченную страницу/scan budget.
+Diff — streaming merge sorted stable IDs, без каталога в памяти. Missing baseline finding
+может стать resolved только при завершённом сопоставимом новом скане и неизменных
+scope/rule semantics. Incomplete/incompatible/needs_review отсутствие — unknown.
+HTML self-contained/no scripts/network; все untrusted строки escaped. CSV RFC4180 с
+защитой formula/control-prefix injection, BOM по export option без изменения ProjectConfig.
+AC-28 UI часть остаётся EPIC-08, в EPIC-06 доказывается storage pagination/100k fixture.

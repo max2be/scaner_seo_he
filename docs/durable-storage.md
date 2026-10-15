@@ -138,3 +138,9 @@ Fault tests реально завершают отдельный процесс 
 Модель рассчитана на файловую семантику локального Linux volume; сбой оборудования,
 полный диск на каждом возможном syscall и 100k benchmark пока не воспроизведены.
 UI-индикация AC-07 и HTTP 409 endpoint AC-24 остаются EPIC-07/08; здесь проверен storage/CLI слой.
+
+## EPIC-05 update
+Новые scans включают SEO analysis и используют checkpoint/WAL1.1, rules.json, facts,
+findings и отдельный analysis cursor. Reader1.0 сохранён. `discoveryComplete` и анализ
+отличаются: parser/analysis errors делают scan incomplete без сокрытия завершённого discovery.
+Правила и migration: [seo-rules.md](seo-rules.md). Legacy1.0 не реанализируется автоматически.

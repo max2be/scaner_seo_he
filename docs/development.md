@@ -1,4 +1,4 @@
-# Разработка: EPIC-01…04
+# Разработка: EPIC-01…06
 
 Требуется Node.js 24.19.0 (major 24), npm 11; Docker Engine + Compose v2 для контейнеров.
 Все команды из корня checkout, без worktree и глобальных npm install.
@@ -27,7 +27,7 @@ Health проверяет создание, fsync и rename временного
 он не возвращает пути, project counts, конфигурацию или секреты.
 Недоступное хранилище даёт 503 без подробностей. Root и все прочие routes — 401.
 Это безопасный skeleton, а не работающий login или готовая панель. UI только собирается.
-Packages sources/reports пока содержат только точки входа: функциональность следующих epic.
+Packages sources/reports реализуют discovery/HTML facts и report/diff orchestration через файловые адаптеры.
 Zod URL checks не являются SSRF защитой. EPIC-02 добавляет SafeHttpClient с DNS/IP pinning; см. docs/http-client.md.
 Схемы не являются sanitizer HTML/PII: перед записью нужен redaction этап EPIC-05/06.
 
@@ -80,7 +80,7 @@ Handoff/публикация ревью запрещены project overrides, д
 
 Контрактные fixtures двух сайтов проверяют переносимость конфигурации, не сканирование.
 AC-01/04 продукта пока частично покрыты; весь MVP и остальные AC не заявлены выполненными.
-HTTP library и discovery/Entity Feed реализованы; см. docs/discovery.md. Durable lifecycle/locks/resume: см. docs/durable-storage.md. Далее EPIC-05: правила SEO.
+HTTP library и discovery/Entity Feed реализованы; см. docs/discovery.md. Durable lifecycle/locks/resume: см. docs/durable-storage.md. EPIC-05 SEO pipeline: см. docs/seo-rules.md. EPIC-06 отчёты/seek/diff: см. docs/reports.md. Далее EPIC-07: authenticated API.
 Никаких production сканов без разрешения владельца.
 
 Для durable worker требуется Linux `/usr/bin/flock`; Dockerfile проверяет наличие.

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { discover } from '@hsi/sources';
 import { SafeHttpClient } from '@hsi/core';
 import { DurableDiscoveryStore, FileResponseSpool, ScanRepository, initialRecovery, StorageConflict } from '@hsi/storage';
@@ -75,7 +76,7 @@ describe('Resume integration and real worker death / AC-23', () => {
       else expect((await repo.manifest(project.id, scan.scanId)).status).toBe('interrupted');
       const result = await runScan(repo, project.id, scan.scanId, { resume: true, discovery: { client: site.client() } });
       expect(result).toMatchObject({ status: 'completed', discovered: 2, fetched: 2, queued: 0, scanComplete: true });
-      expect(hits).toEqual(['/', '/slow', '/slow']);
+      expect(hits).toEqual(['/', '/slow', '/slow', '/slow/']); // final variant check is new in EPIC-05; completed root is not refetched
     } finally { if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await once(child, 'exit'); } }
   });
 
@@ -112,6 +113,8 @@ describe('Resume integration and real worker death / AC-23', () => {
     const site = await fixture((_req, res) => { res.setHeader('content-type', 'text/html'); res.end('<a href="/a">A</a><a href="/b">B</a>'); });
     const project = site.config(); project.discovery.maxUrls = 1; const repo = new ScanRepository(await root()); let scan = await repo.enqueue(project, 'cancel');
     await repo.requestCancel(project.id, scan.scanId); expect((await runScan(repo, project.id, scan.scanId)).status).toBe('canceled');
+    const acquireSlot = repo.poolSlot.bind(repo);
+    repo.poolSlot = async () => { await delay(150); return acquireSlot(); }; // stale cancel must not abort a slowly starting resume
     scan = await runScan(repo, project.id, scan.scanId, { resume: true, discovery: { client: site.client() } });
     expect(scan).toMatchObject({ status: 'incomplete', truncated: true, scanComplete: false, discovered: 1 });
     const resumed = await runScan(repo, project.id, scan.scanId, { resume: true, discovery: { client: site.client() } });

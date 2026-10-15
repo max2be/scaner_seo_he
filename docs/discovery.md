@@ -120,3 +120,7 @@ SEO verdict. Для scan lifecycle итог discovery должен быть яв
 EPIC-04 добавляет отдельный DurableDiscoveryStore и `npm run scan`;
 подробности в [durable-storage.md](durable-storage.md). Ограничения ephemeral spool выше
 сохраняются для прежнего `npm run discover`; production worker использует новый протокол.
+
+EPIC-05: durable `npm run scan` выполняет также Rule Engine и сохраняет findings;
+`npm run discover` остаётся самостоятельной диагностикой discovery без SEO analysis.
+Настройки, правила и migration — [seo-rules.md](seo-rules.md).

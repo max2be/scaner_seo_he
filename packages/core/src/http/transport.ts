@@ -12,7 +12,7 @@ import { sameAddress } from './policy.js';
 import { HttpFailure } from './errors.js';
 export interface BodySink { write(chunk: Buffer): Promise<void>; close(): Promise<void>; abort(): Promise<void> }
 export type BodySinkFactory = () => Promise<BodySink>;
-export interface TransportResponse { status: number; location?: string; retryAfter?: string; contentType: string;
+export interface TransportResponse { status: number; xRobotsTag?: string[]; location?: string; retryAfter?: string; contentType: string;
   body: Buffer; bodyBytes?: number; bodySha256?: string; wireBytes: number; ttfbMs: number; totalMs: number }
 export type Transport = (target: PinnedTarget, settings: { userAgent: string; maxBytes: number; timeoutMs: number; authorization?: string; sink?: BodySinkFactory }, signal: AbortSignal) => Promise<TransportResponse>;
 function limitStream(maximum: number, count: (bytes: number) => void) {
@@ -61,6 +61,8 @@ export function createNodeTransport(ca?: string): Transport {
           const location = response.headers.location;
           const retryAfter = response.headers['retry-after'];
           const contentType = (response.headers['content-type'] || '').slice(0, 200);
+          const rawRobots = response.headers['x-robots-tag'];
+          const xRobotsTag = (Array.isArray(rawRobots) ? rawRobots : rawRobots ? [rawRobots] : []).map(v => v.slice(0, 8192));
           // Redirect bodies have no diagnostic value; never buffer them.
           if ([301, 302, 303, 307, 308].includes(status)) {
             response.destroy(); clearTimeout(timeout);
@@ -89,7 +91,7 @@ export function createNodeTransport(ca?: string): Transport {
           await activeSink?.close();
           signal.throwIfAborted();
           clearTimeout(timeout);
-          resolve({ status, ...(retryAfter ? { retryAfter } : {}), contentType,
+          resolve({ status, xRobotsTag, ...(retryAfter ? { retryAfter } : {}), contentType,
             body: Buffer.concat(chunks), bodyBytes, bodySha256: digest.digest('hex'), wireBytes, ttfbMs, totalMs: performance.now() - started });
         } catch (error) { clearTimeout(timeout); response.destroy(); await activeSink?.abort().catch(() => {}); reject(error); }
       })();

@@ -1,5 +1,6 @@
 import type { Entity, Finding, ProjectConfig, UrlRecord } from '@hsi/contracts';
-export interface RuleContext { project: ProjectConfig; url: UrlRecord; entity?: Entity }
+import type { AnalysisContext } from './seo/context.js';
+export interface RuleContext { project: ProjectConfig; url: UrlRecord; entity?: Entity; analysis?: AnalysisContext }
 export type RuleResult =
   | { verdict: 'pass' | 'not_applicable' }
   | { verdict: 'finding'; finding: Finding & { verdict: 'finding' } }
@@ -15,3 +16,6 @@ export interface Rule {
 }
 export { SafeHttpClient, retryDelay, type HttpFetchResult } from './http/client.js';
 export type { BodySink, BodySinkFactory } from './http/transport.js';
+export { RuleEngine, validateRuleProfile, type EngineResult, type RuleEvaluation } from './seo/engine.js';
+export { seoRules, findingId, normalizedTarget, expectedIndexable, trustedEntity } from './seo/rules.js';
+export type { AnalysisContext } from './seo/context.js';

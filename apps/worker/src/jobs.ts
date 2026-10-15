@@ -1,3 +1,4 @@
+import { processOperation } from './operations.js';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DiscoverySummarySchema, type DiscoveryRecovery, type ScanManifest, type RuleProfile } from '@hsi/contracts';
@@ -5,11 +6,13 @@ import { SafeHttpClient, validateRuleProfile } from '@hsi/core';
 import { publishScanReport } from './reporting.js';
 import { analyzeScan, collectObservation, hasExpectedEntity, assertRuleProfileForProject } from './analysis.js';
 import { discover, type DiscoveryOptions } from '@hsi/sources';
-import { DurableDiscoveryStore, FileResponseSpool, ScanRepository, StorageConflict } from '@hsi/storage';
+import { DurableDiscoveryStore, FileResponseSpool, ScanRepository, StorageConflict, OperationRepository } from '@hsi/storage';
 export interface RunOptions {
   signal?: AbortSignal;
   /** Explicit resume acknowledges interrupted/canceled/incomplete state, not a new scan. */
   resume?: boolean;
+  /** Durable resume submission already cleared old cancel; preserve any later request. */
+  clearPreviousCancel?: boolean;
   discovery?: Pick<DiscoveryOptions, 'client' | 'backendClient' | 'readToken' | 'onPage' | 'limits'>;
 }
 /** Used by the worker and CLI. Project lock spans the entire attempt, including recovery. */
@@ -43,7 +46,8 @@ export async function runScan(repo: ScanRepository, projectId: string, scanId: s
     const others = await repo.list(projectId);
     if (others.some(v => v.scanId !== scanId && ['queued', 'running', 'interrupted'].includes(v.status))) throw new StorageConflict('project_has_active_scan');
     slot = await repo.poolSlot(); slot.onLost(() => process.exit(1));
-    if (options.resume) await repo.clearCancel(projectId, scanId);
+    if (options.resume && options.clearPreviousCancel !== false) await repo.clearCancel(projectId, scanId);
+    else if (options.resume && await repo.cancelRequested(projectId, scanId)) return manifest;
     else if (await repo.cancelRequested(projectId, scanId)) return await repo.transition(manifest, 'canceled', 'user_canceled');
     let project;
     try { project = await repo.project(projectId, scanId); }
@@ -107,7 +111,9 @@ export async function workOnce(repo: ScanRepository, signal?: AbortSignal) {
     if (signal?.aborted) break;
     const manifests = await repo.list(projectId);
     const candidate = manifests.find(v => v.status === 'queued' || v.status === 'running');
-    if (candidate) jobs.push(runScan(repo, projectId, candidate.scanId, signal ? { signal } : {}).catch(error => {
+    if (!candidate && !(await new OperationRepository(repo.root).list(projectId)).some(v => ['queued','running','interrupted'].includes(v.state))) continue;
+    const work = candidate ? runScan(repo, projectId, candidate.scanId, signal ? { signal } : {}) : processOperation(repo, projectId, signal);
+    jobs.push(work.catch(error => {
       if (!(error instanceof StorageConflict)) console.error(JSON.stringify({ event: 'job_failed', code: 'storage_or_execution_error' }));
     }));
     // Bound pending promises independently of catalog/project count.

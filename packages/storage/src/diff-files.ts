@@ -100,7 +100,9 @@ export class FileDiffReader {
             catch {
                 throw new Error('invalid_diff_cursor');
             }
-            const c = FindingCursorSchema.parse(parsed);
+            const parsedCursor = FindingCursorSchema.safeParse(parsed);
+            if (!parsedCursor.success) throw new Error('invalid_diff_cursor');
+            const c = parsedCursor.data;
             if (c.generation !== generation || c.filterHash !== filterHash || c.ordinal > count)
                 throw new Error('stale_or_invalid_diff_cursor');
             ordinal = c.ordinal;

@@ -21,3 +21,7 @@ export { FileLease, StorageConflict } from './locks.js';
 export { ScanRepository, initialRecovery } from './scans.js';
 export { FileReportWriter, FileReportReader } from './report-files.js';
 export { FileDiffWriter, FileDiffReader } from './diff-files.js';
+export { ProjectRepository } from './projects.js';
+export { OperationRepository } from './operations.js';
+export { safeDataPath, readSmallJson, isMissing } from './safe-files.js';
+export { FileAuthStore } from './auth.js';

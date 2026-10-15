@@ -1,6 +1,6 @@
 # Headless SEO Inspector
 
-Universal SEO diagnostic scanner for headless sites. **EPIC-01…06 implemented: skeleton, safe HTTP, discovery, durable scan lifecycle SEO rules, file reports and scan comparison.**
+Universal SEO diagnostic scanner for headless sites. **EPIC-01…07 implemented: skeleton, safe HTTP, discovery, durable scan lifecycle, SEO rules, file reports, scan comparison and authenticated API.**
 
 ## Specifications
 
@@ -13,9 +13,9 @@ Universal SEO diagnostic scanner for headless sites. **EPIC-01…06 implemented:
 
 ## Start development with Codex
 
-Read the PRD and technical specification, then follow the backlog in order; EPIC-01…06 are implemented. Do not hard-code SABOSPORTS or Bitrix-specific assumptions.
+Read the PRD and technical specification, then follow the backlog in order; EPIC-01…07 are implemented. Do not hard-code SABOSPORTS or Bitrix-specific assumptions.
 
-The discovery CLI imports sitemap/feed URLs and crawls source HTML with safe HTTP. Durable queue/checkpoints, resume, project locks and retention are implemented; see [scan lifecycle and CLI](docs/durable-storage.md). Rule Engine and durable findings are implemented; see [SEO rules](docs/seo-rules.md). File reports, seek pagination and conservative scan comparison are implemented; see [reports and CLI](docs/reports.md). Authentication and UI workflows remain in the backlog. See [HTTP client](docs/http-client.md) and [discovery CLI](docs/discovery.md).
+The discovery CLI imports sitemap/feed URLs and crawls source HTML with safe HTTP. Durable queue/checkpoints, resume, project locks and retention are implemented; see [scan lifecycle and CLI](docs/durable-storage.md). Rule Engine and durable findings are implemented; see [SEO rules](docs/seo-rules.md). File reports, seek pagination and conservative scan comparison are implemented; see [reports and CLI](docs/reports.md). Authenticated API is implemented; see [auth and API setup](docs/api-auth.md). Browser UI remains EPIC-08; configure admin credentials and HTTPS before browser access. See [HTTP client](docs/http-client.md) and [discovery CLI](docs/discovery.md).
 
 ## Development
 

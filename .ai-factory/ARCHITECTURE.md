@@ -28,8 +28,9 @@ bounded buffers; запрещено читать весь каталог/HTML в
 
 ## Security gates
 EPIC-01 предоставляет только общедоступный минимальный health endpoint.
-Любые /api/* кроме health отвечают 401, root — 401; проектные данные не обслуживаются.
-Login/session/CSRF — EPIC-07, UI функции — EPIC-08. UI skeleton собирается, но не публикуется.
+EPIC-07: health публичен, login требует Origin/rate limit, остальные API требуют admin session.
+Writes требуют Origin/CSRF, download/file paths закрыты. Без auth config private routes401.
+UI функции — EPIC-08; UI skeleton собирается, но не публикуется. См. docs/api-auth.md.
 Никаких HTTP requests к пользовательским URL до EPIC-02: DNS resolve + public IP
 policy IPv4/IPv6 + connection-bound pinning + повторная проверка редиректов + TLS.
 Private backend не включён. Это открытый вопрос пилота, не разрешение SSRF bypass.

@@ -149,3 +149,28 @@ scope/rule semantics. Incomplete/incompatible/needs_review отсутствие 
 HTML self-contained/no scripts/network; все untrusted строки escaped. CSV RFC4180 с
 защитой formula/control-prefix injection, BOM по export option без изменения ProjectConfig.
 AC-28 UI часть остаётся EPIC-08, в EPIC-06 доказывается storage pagination/100k fixture.
+
+## ADR-016 — EPIC-07 auth and command boundaries
+Before implementation: GET compare cannot create a diff because the specification also
+forbids state changes on GET. Add POST compare to queue worker work; GET reads ready
+comparisons, including conservative unknown for incomplete pairs per PRD/EPIC-06.
+Validation reachability is an asynchronous worker operation, not a crawler in web.
+Resume is a durable command, not a web call into worker. Project deletion means archive;
+scan snapshots are immutable. Existing project.json and scans remain readable.
+Single admin: Node24 built-in asynchronous Argon2id (PHC), file sessions, bounded persistent
+login throttling and at most two concurrent KDFs. Cookies always Secure/HttpOnly/SameSite=Strict;
+POST login requires configured Origin, authenticated writes also require CSRF.
+Missing auth configuration fails closed; health remains usable. No anonymous docs/files/UI.
+Node's Argon2 API is experimental in pinned Node24, with no third-party native dependency.
+
+## ADR-017 — operator credential bindings and additive API storage
+Remote project editing must not turn arbitrary process.env names into an exfiltration
+primitive. API bearer references require BACKEND_CREDENTIAL_ORIGINS operator mapping
+{ENV_NAME:[HTTPS_ORIGIN]}; web receives references/origins only, worker receives actual
+backend credentials. No mapping means API cannot enable bearer for that origin.
+ProjectConfig/scans/checkpoints/report formats remain unchanged. Add archive.json,
+Operation1.0 and SessionFile1.0; old project.json is readable with archived=false.
+Project PATCH replaces top-level fields/nested objects and may archive/restore in a
+separate request, keeping each mutation atomic. Resume/compare/validate commands reserve
+a project; latest50 operation records and32 sessions are retained. Existing Linux flock
+and global worker pool guard all job kinds. GET comparison only reads current generations.

@@ -23,3 +23,16 @@ Original Request: делаем эпик 6
 - [x] Final clean check: 361 tests passed; 100k memory/seek/diff; smoke/Docker; docs/EPIC-06-RESULTS.md.
 
 No EPIC-07, production scans, external skill sync, commits or publishing without user task.
+
+# EPIC-07 — M6
+Original Request: перейдем к EPIC-07
+Источник: docs/03_CODEX_BACKLOG.md; AC-02/03 (API)/24/26.
+
+- [x] ADR-016/017: GET compare read-only, POST queues worker; immutable scan schemas.
+- [x] Async Argon2id/PHC, rotating file sessions, Origin/CSRF, persistent throttle/privacy.
+- [x] Projects create/read/patch/archive, revisions, frozen snapshots and safe paths.
+- [x] Durable start/resume/validate/compare, global worker capacity and cancel control.
+- [x] Seek findings/details/summary, streamed authorized exports, authenticated OpenAPI.
+- [x] Final check:412 tests/24 files passed; 100k/HTTP/Docker smokes; docs/results and reusable cloud startup draft saved.
+
+No EPIC-08, production scans, external skill sync, commits or publishing without user task.

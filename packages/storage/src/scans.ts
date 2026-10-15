@@ -7,6 +7,8 @@ import { ProjectConfigSchema, ScanManifestSchema, safeId, type ScanManifest, typ
 import { atomicJson, syncDirectory } from './atomic.js';
 import { DurableDiscoveryStore } from './durable-discovery.js';
 import { FileLease, StorageConflict } from './locks.js';
+import { ProjectRepository } from './projects.js';
+import { OperationRepository } from './operations.js';
 const now = () => new Date().toISOString();
 const terminal = new Set(['completed', 'incomplete', 'failed', 'canceled']);
 const transitions: Record<ScanManifest['status'], ScanManifest['status'][]> = {
@@ -64,7 +66,24 @@ export class ScanRepository {
     const project = ProjectConfigSchema.parse(input); const profile = RuleProfileSchema.parse(rules); safeId.parse(scanId);
     for (const probe of profile.unknownRouteProbes) if (!project.allowedHosts.includes(new URL(probe.url).hostname)) throw new Error('probe_host_not_allowed');
     const lease = await this.lock(project.id);
+    lease.onLost(() => process.exit(1));
+    try { return await this.enqueueLocked(project, scanId, profile, lease); } finally { await lease.release(); }
+  }
+  async enqueueCurrent(projectId: string, scanId: string = randomUUID(), rules: RuleProfile = defaultRuleProfile(), validate?: (project: ProjectConfig, profile: RuleProfile) => void) {
+    const lease = await this.lock(projectId);
+    lease.onLost(() => process.exit(1));
     try {
+      const current = await new ProjectRepository(this.root).read(projectId);
+      const profile = RuleProfileSchema.parse(rules); validate?.(current.project, profile);
+      return await this.enqueueLocked(current.project, safeId.parse(scanId), profile, lease);
+    } finally { await lease.release(); }
+  }
+  private async enqueueLocked(project: ProjectConfig, scanId: string, profile: RuleProfile, lease: FileLease) {
+    for (const probe of profile.unknownRouteProbes) if (!project.allowedHosts.includes(new URL(probe.url).hostname)) throw new Error('probe_host_not_allowed');
+      await new OperationRepository(this.root).assertIdle(project.id);
+      let archived = false;
+      try { archived = (await new ProjectRepository(this.root).read(project.id)).archived; } catch (error) { if (!isMissing(error)) throw error; }
+      if (archived) throw new StorageConflict('project_archived');
       await this.cleanupStaging(project.id, lease);
       const current = await this.list(project.id);
       const existing = current.find(v => v.scanId === scanId);
@@ -89,7 +108,6 @@ export class ScanRepository {
       await atomicJson(join(path, 'manifest.json'), manifest);
       await rename(path, finalPath); await syncDirectory(join(this.projectPath(project.id), 'scans'));
       await atomicJson(join(this.projectPath(project.id), 'project.json'), project); return manifest;
-    } finally { await lease.release(); }
   }
   async project(projectId: string, scanId: string) {
     const value = ProjectConfigSchema.parse(JSON.parse(await readFile(join(this.scanPath(projectId, scanId), 'project.json'), 'utf8')));

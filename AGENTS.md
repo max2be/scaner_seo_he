@@ -4,5 +4,5 @@ Use .ai-factory/RULES.md, .ai-factory/ARCHITECTURE.md and docs/DECISIONS.md.
 Use existing isolated checkout; no Git worktrees unless explicitly requested.
 Never send project content, secrets or logs to third-party services via skills.
 Handoff sync, telemetry, auto-downloaded skills, external MCP integrations are disabled.
-Review installed skills before use and after updates. Current scope: EPIC-06, explicitly authorized by the user after EPIC-05 validation. Preserve completed EPIC-05 work. Do not start EPIC-07 in this iteration.
+Review installed skills before use and after updates. Current scope: EPIC-07, explicitly authorized by the user after EPIC-06 validation. Preserve completed EPIC-05 work. Do not start EPIC-08 in this iteration.
 Run npm ci, npm run check. See docs/development.md for startup and Docker smoke.

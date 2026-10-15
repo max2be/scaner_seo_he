@@ -334,6 +334,7 @@ export class FileReportReader implements ReportReadPort {
             for (const child of node.children)
                 yield* this.identities(prefix === 'root' ? child : prefix + child);
     }
+    async *findings() { yield* typedJsonl(join(this.directory, 'findings.jsonl'), v => this.parseFinding(v)); }
     async *sortedFindings() {
         const file = await open(join(this.directory, 'findings.jsonl'), 'r');
         try {
@@ -436,7 +437,9 @@ export class FileReportReader implements ReportReadPort {
             catch {
                 throw new Error('invalid_report_cursor');
             }
-            const cursor = FindingCursorSchema.parse(raw);
+            const parsedCursor = FindingCursorSchema.safeParse(raw);
+            if (!parsedCursor.success) throw new Error('invalid_report_cursor');
+            const cursor = parsedCursor.data;
             if (cursor.generation !== generation || cursor.filterHash !== hash || cursor.ordinal > count)
                 throw new Error('stale_or_invalid_report_cursor');
             ordinal = cursor.ordinal;

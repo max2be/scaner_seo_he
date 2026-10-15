@@ -1,0 +1,35 @@
+{
+  "name": "headless-seo-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "npm@11.9.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build --workspace @hsi/ui",
+    "typecheck": "tsc -b && tsc -p tsconfig.tests.json --noEmit && npm run typecheck --workspace @hsi/ui",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "start:web": "node apps/web/dist/main.js",
+    "start:worker": "node apps/worker/dist/main.js",
+    "smoke": "node scripts/smoke.mjs",
+    "discover": "node apps/worker/dist/discover.js",
+    "scan": "node apps/worker/dist/scan.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.10.0",
+    "eslint": "^9.39.0",
+    "globals": "^16.5.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
+  }
+}

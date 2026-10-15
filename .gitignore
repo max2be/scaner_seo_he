@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+/data/
+.env
+.env.*
+!.env.example
+!deploy/.env.example

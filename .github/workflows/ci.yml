@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm run smoke
+      - run: docker compose -f deploy/compose.yaml up -d --build --wait
+      - run: curl --fail http://127.0.0.1:3000/api/health
+      - run: docker compose -f deploy/compose.yaml down -v
+        if: always()

@@ -1,0 +1,12 @@
+{
+  "name": "@hsi/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hsi/contracts": "*",
+    "@hsi/storage": "*",
+    "fastify": "^5.6.2",
+    "zod": "^3.25.76"
+  }
+}

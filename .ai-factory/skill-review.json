@@ -1,0 +1,19 @@
+{
+  "package": "ai-factory",
+  "version": "2.19.0",
+  "npmIntegrity": "sha512-/teFeP5cbWh6zK9kWleI3MrxqiVLAqXbELnol2MCRJizgQc7bX8DW+w8MhIdIXT5ylB5B9Nsbm2BW8QCAH76nQ==",
+  "reviewedAt": "2026-10-15",
+  "restrictions": "No Handoff, MCP, telemetry, publishing, external uploads, or automatic updates",
+  "files": {
+    ".agents/skills/aif-architecture/SKILL.md": "b288082920bc406c9c96e6b8e740cad5b94096e2758690cfdf5a850d01286604",
+    ".agents/skills/aif-architecture/references/architecture.md": "7293e3a417edddd04f6e1f640c9a42d73fabc7631b5a56d6637da3733bdc6639",
+    ".agents/skills/aif-plan/SKILL.md": "0cc8c8f56bc50d2b244d9ba3355ee71667973d546c4900792225da365f8e6942",
+    ".agents/skills/aif-plan/references/EXAMPLES.md": "44e09b98ca33dd1cce8dce4ad236b106654708ef978f70cedef401d845dca13a",
+    ".agents/skills/aif-plan/references/TASK-FORMAT.md": "5d252a02a75946512a03bcbd7936f0a27d34fabe83a047dcb35df21e26a8b709",
+    ".agents/skills/aif-plan/references/ULTRA-FORMAT.md": "6e5fef0a01d1127fd7912e406e00321cb66cd28662d3993da766c709b185f816",
+    ".agents/skills/aif-review/SKILL.md": "a8d3eb06f6982f28363564db18aa72aa61f0337bad4cb658d4267876ee5f0d34",
+    ".agents/skills/aif-review/references/CHECK-MODE.md": "c6a879590a55ed5a1839865e3c2fd867ffe397f440852d25124f51dfd3cb5dd9",
+    ".agents/skills/aif-review/references/SEVERITY.md": "7c6d965470492a8e48db4b5d0ab7026b0ea8b64392d11c24836650ef579fae8b",
+    ".agents/skills/aif-review/references/VALIDATOR.md": "e0d5e677c59d9fefb26f0b07d9c511f23678d6a9acc7578516e2e87fdb3c6410"
+  }
+}

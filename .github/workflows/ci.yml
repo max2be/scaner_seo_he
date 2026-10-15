@@ -1,0 +1,21 @@
+name: Foundation CI
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # npm lockfile is intentionally not yet checked in. Generate one in CI for this first review;
+      # EPIC-01 is not accepted until package-lock.json is committed and npm ci is used.
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: docker compose build

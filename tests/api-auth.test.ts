@@ -17,7 +17,7 @@ describe('Argon2id / file sessions / privacy (AC-02)', () => {
             expect(() => parsePasswordHash(hash)).toThrow();
         await expect(hashPassword('short')).rejects.toThrow();
     });
-    it.each(['/', '/api/me', '/api/projects', '/api/openapi.json', '/api/projects/one/scans/s/download/html', '/data/projects/private/project.json'])('rejects anonymous %s without data or paths', async (url) => {
+    it.each(['/api/me', '/api/projects', '/api/openapi.json', '/api/projects/one/scans/s/download/html', '/data/projects/private/project.json'])('rejects anonymous %s without data or paths', async (url) => {
         const { app } = await apiFixture();
         const result = await app.inject({ url });
         expect(result.statusCode).toBe(401);

@@ -1,3 +1,4 @@
+import { removeTree } from './remove-tree.js';
 import { createReadStream } from 'node:fs';
 import { mkdir, mkdtemp, open, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -16,5 +17,5 @@ export class FileResponseSpool implements ResponseSpool {
       abort: async () => { await close(); await rm(path, { force: true }); } };
   }
   read() { return createReadStream(join(this.directory, 'body'), { highWaterMark: 16384 }); }
-  async close() { await rm(this.directory, { recursive: true, force: true }); }
+  async close() { await removeTree(this.directory, { force: true }); }
 }

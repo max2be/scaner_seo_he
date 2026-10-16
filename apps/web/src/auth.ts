@@ -29,12 +29,13 @@ export function equalToken(a: string, b: string) {
 }
 const sessionView = (v: SessionFile) => SessionViewSchema.parse({ schemaVersion: v.schemaVersion, role: v.role, csrfToken: v.csrfToken, expiresAt: v.expiresAt });
 const cookie = (token: string, age: number) => cookieName + '=' + token + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
-export function registerAuth(app: FastifyInstance, dataDir: string, input?: WebAuthConfig, now?: () => number) {
+export function registerAuth(app: FastifyInstance, dataDir: string, input?: WebAuthConfig, now?: () => number, publicUiPaths: ReadonlySet<string> = new Set()) {
     const config = input ? validateAuthConfig(input) : undefined;
     const store = config ? new FileAuthStore(dataDir, createHash('sha256').update(config.passwordHash + '\n' + config.publicOrigin).digest('hex'), now) : undefined;
     const sessions = new WeakMap<FastifyRequest, SessionFile>();
     let kdfs = 0;
     app.addHook('onRequest', async (request, reply) => {
+        if (['GET', 'HEAD'].includes(request.method) && publicUiPaths.has(request.routeOptions.url ?? '')) return;
         if (request.method === 'GET' && request.routeOptions.url === '/api/health')
             return;
         if (request.routeOptions.url === '/api/auth/login' && request.method === 'POST') {

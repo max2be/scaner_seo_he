@@ -1,0 +1,47 @@
+# docker compose -f deploy/compose.yaml -f deploy/compose.tls.yaml up -d
+# Configure PUBLIC_ORIGIN, admin hash, hostname in nginx.conf, and real TLS files first.
+services:
+  inspector-web:
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact HTTPS origin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set a locally generated Argon2id PHC hash}
+  inspector-proxy:
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    user: '1000:1000'
+    entrypoint: [nginx]
+    command: [-g, 'daemon off;']
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      inspector-web:
+        condition: service_healthy
+    ports:
+      - '${HSI_TLS_BIND:-127.0.0.1}:443:8443'
+    volumes:
+      - type: bind
+        source: ${HSI_TLS_CONFIG_FILE:-./nginx.conf}
+        target: /etc/nginx/nginx.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HSI_TLS_CERT_FILE:?Set an absolute certificate-chain path}
+        target: /etc/hsi/tls/cert.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HSI_TLS_KEY_FILE:?Set an absolute private-key path}
+        target: /etc/hsi/tls/key.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 30s
+      timeout: 5s
+      retries: 3

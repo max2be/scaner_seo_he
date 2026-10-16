@@ -159,3 +159,12 @@ describe('Positive/negative matrix for every remaining rule', () => {
     for (const id of ['TITLE_MISSING', 'DESCRIPTION_MISSING', 'H1_MISSING', 'CANONICAL_MISSING']) expect(result.evaluations.find(e => e.ruleId === id)?.result.verdict).toBe('not_applicable');
   });
 });
+
+it('AC-18: standalone empty HTML shell is needs_review without inventing backend expectations or P0', async () => {
+  const shell = context('<html><head></head><body><div id="app"></div></body></html>', 200, false);
+  expect(await detect('SSR_CONTENT_MISSING', shell)).toMatchObject({ verdict: 'needs_review', finding: { severity: 'P2', ruleVersion: '1.0.1' } });
+  expect(await detect('EXPECTED_PAGE_NOT_200', shell)).toEqual({ verdict: 'not_applicable' });
+  shell.analysis!.observation.facts!.noindex = true;
+  expect(await detect('SSR_CONTENT_MISSING', shell)).toEqual({ verdict: 'not_applicable' });
+  expect(await detect('SSR_CONTENT_MISSING', context(healthy, 200, false))).toEqual({ verdict: 'pass' });
+});

@@ -1,12 +1,12 @@
 import { processOperation } from './operations.js';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DiscoverySummarySchema, type DiscoveryRecovery, type ScanManifest, type RuleProfile } from '@hsi/contracts';
 import { SafeHttpClient, validateRuleProfile } from '@hsi/core';
 import { publishScanReport } from './reporting.js';
 import { analyzeScan, collectObservation, hasExpectedEntity, assertRuleProfileForProject } from './analysis.js';
 import { discover, type DiscoveryOptions } from '@hsi/sources';
-import { DurableDiscoveryStore, FileResponseSpool, ScanRepository, StorageConflict, OperationRepository } from '@hsi/storage';
+import { DurableDiscoveryStore, FileResponseSpool, ScanRepository, StorageConflict, OperationRepository, removeTree } from '@hsi/storage';
 export interface RunOptions {
   signal?: AbortSignal;
   /** Explicit resume acknowledges interrupted/canceled/incomplete state, not a new scan. */
@@ -63,7 +63,7 @@ export async function runScan(repo: ScanRepository, projectId: string, scanId: s
     manifest = await repo.transition(manifest, 'running');
     startCancellationPolling(); // Never consume a stale cancel request before resume clears it.
     // Prior temporary XML belongs to the dead attempt, never to a checkpoint.
-    await rm(join(directory, 'temporary'), { recursive: true, force: true });
+    await removeTree(join(directory, 'temporary'), { force: true });
     const recovery: DiscoveryRecovery = {
       get state() { return store!.state; },
       recordPage: (record, result) => store!.recordPage(record, result),

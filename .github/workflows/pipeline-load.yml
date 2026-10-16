@@ -1,0 +1,25 @@
+name: Generated pipeline load
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generated-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: mkdir -p test-results
+      - run: npm run benchmark:pipeline -- --output test-results/pipeline.json
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: synthetic-pipeline-metrics
+          path: test-results/pipeline.json
+          retention-days: 7

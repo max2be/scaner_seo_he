@@ -187,3 +187,111 @@ class fields above constructor/methods. Do not hoist initializers or weaken cons
 ESLint enforces no variable/class use before definition, prefer-const/no-var and field order;
 hoisted named functions and type-only references are allowed. Scheduler callback ordering
 is clarified without changing cancellation/permit behavior. See docs/SUM1-7-RESULTS.md.
+
+## ADR-019 — EPIC-08 SPA and contract boundaries
+Before implementation: PRD FR-06, technical spec §10/14 and backlog E08 agree on
+Russian protected SPA, bounded paging and explicit unknown/incomplete states.
+The public login shell and its built JS/CSS contain no project/session data; all
+data routes/exports remain authenticated. Exact allowlisted static assets only,
+no generic DATA_DIR/static fallback. Hash navigation avoids ambiguous server paths.
+CSP allows only local external scripts/styles and local fetch, no inline scripts,
+target HTML, remote fonts/CDN or browser crawler. CSRF stays in memory, cookie HttpOnly.
+Full scan/restart means POST new immutable scan, resume is a durable worker operation;
+validation is sampled preflight, never a full catalog validation claim. Empty pages
+with cursor and null totals remain navigable. Polling is bounded and abortable.
+Existing DTO lacks global worker/disk metrics and finding HTTP response chain:
+show available health, project retention, committed counters and saved evidence
+only; unavailable telemetry is explicitly unknown, no invented full response facts.
+PRD FR-06.6 delta export is missing from E07 API; add authenticated streaming
+GET comparison/download/{kind} for existing jsonl/csv/html files, checking generations.
+No persisted format changes, no schemaVersion migration or target requests in web.
+Browser tests use disposable local TLS and only HSI, never target-site Playwright.
+ScanManifest currently carries generic reasons, not a list of source issues. To meet
+the explicit incomplete-source UI requirement, add GET diagnostics with a bounded
+256 KiB read, max100 schema-validated rows and snapshot-bound byte cursor. Only
+stopped snapshots may be read; no new persisted format or network access.
+
+## ADR-020 — EPIC-09 scheduler and compatibility
+Before implementation: PRD FR-05/UC-06, technical spec §12 and E09-01 agree on
+per-project cron/timezone, durable queue only, one catch-up at most, no overlap.
+Support numeric five-field cron (minute resolution), timezone from ProjectConfig.
+Use pinned cron-parser for calendar/DST arithmetic, not an unbounded minute search.
+Existing ProjectConfig1.0 and scan formats remain readable; semantic schedule
+validation applies to new requests. Invalid legacy schedules fail closed per project.
+New SchedulerState1.0 stores a UTC watermark and pending enqueue intent under the
+existing project flock. Deterministic scheduled scan ID binds project and UTC slot.
+Publish intent before enqueue, acknowledge after directory commit; retry after crash
+reuses the ID. Retention protects an unacknowledged pending scan. Manual scans,
+operations and scheduled scans share the same project lock and worker capacity.
+First enable/config change starts at the current minute, never historical backlog.
+On restart consider only the latest missed slot; operator may disable catch-up.
+Clock rollback never replays an already consumed slot. A changed/archived project
+cancels unpublished old intent; a published immutable scan is preserved.
+Scheduler runs inside worker; web only saves config/reads status, never crawls.
+
+## ADR-021 — EPIC-09 deployment and backups
+Provide a nonroot read-only nginx TLS overlay with operator-provided certificates,
+exact HTTPS origin, request/time/connection limits and no access-log bodies/cookies.
+Base Compose remains localhost/fail-closed for initial setup. No ACME/external SaaS
+or automatic production publication. Synthetic TLS verification only uses test keys.
+Offline backup requires all writers stopped; it never claims a live fs-consistent
+snapshot. File-only private snapshot with bounded SHA256 manifest, no symlinks and no
+auth/session state. Restore verifies paths/digests/counts and publishes into a new
+directory, never overwrites an existing installation. Preserve old data/volumes.
+The operator selects the restored DATA_DIR for both services. No secret values are
+read to configure the environment or written into docs; backend secrets remain worker-only.
+Existing report aliases use hardlinks: backup copies their bytes independently;
+the portable artifact/restore rejects hardlinks, retaining no link relationships.
+
+## ADR-022 — EPIC-10: воспроизводимая приёмка и границы пилота
+
+Дата: 2026-10-16. До реализации E10 сверены PRD, ТЗ AC-01…28 и backlog.
+Новых противоречий, требующих изменения согласованных контрактов, не найдено.
+
+Приёмка использует два независимых logical host/profile и disposable HTTP/TLS fixture:
+один binary, существующий worker pipeline, никаких CMS/production URL. Только fixture
+transport отображает разрешённый public logical host на localhost; production Safe HTTP
+policy не изменяется. Два одинаковых запуска проверяют стабильные ID, release-run — diff.
+Ошибочный XML/превышение лимита проверяются отдельными incomplete запусками.
+
+Нагрузочные 10k/100k generated URL прогоны проверяют настоящий durable discovery/HTML/rules/
+reports pipeline с replay HTTP client и ограничением V8 heap. Это исследование файловой
+нагрузки, не измерение сетевого throughput, DNS/TLS или скорости реального сайта.
+Настоящие HTTP rate/concurrency/Retry-After/TLS проверяются отдельными socket tests.
+Не вводить bypass SSRF/rate limits в production ради ускорения benchmark.
+
+Матрица AC указывает конкретные тесты и ограничения, а не объявляет человеческий sign-off
+автоматически выполненным. Owner-approved production scan E10-05 опционален; текущее задание
+его не разрешает. Нагрузочные результаты зависят от storage/fsync и не гарантируют SLA пилота.
+
+## ADR-023 — AC-18 standalone HTML shell
+
+При сквозной приёмке E10 выявлено: SSR_CONTENT_MISSING требовал backend entity,
+поэтому standalone shell200 не получал предусмотренный AC-18 needs_review.
+Правило1.0.1 применяется к indexable source HTML независимо от наличия Entity Feed.
+Noindex/probes и достоверно nonpublished/nonindexable страницы исключены; неизвестные backend данные не превращаются в бизнес-ожидания. Это эвристический P2 needs_review,
+не P0,404 или утверждение об индексации. Порог80 символов и отсутствие Product facts
+сохранены. Rule version изменена, чтобы diff с baseline1.0.0 не считал изменённую
+семантику доказанным resolved. Persisted schemas и engine version не меняются.
+
+## ADR-024 — длинные идентификаторы на мобильной панели
+
+E10 browser QA воспроизвёл overflow dashboard390px для валидного project name160
+символов и scheduled scan ID74 символа. Workspace наследует overflow-wrap:anywhere,
+поэтому непрерывные строки переносятся без изменения данных/ID/ссылок. Добавлен
+Chromium regression с валидным DTO; исходные API/хранилище/маршруты не меняются.
+
+## ADR-025 — ограниченная память при удалении больших сканов
+
+Полный generated100k прогон завершился OOM при heap128 MiB в файловой операции.
+Отдельное воспроизведение на512512 файлах подтвердило OOM стандартного recursive
+`fs.rm`: параллельные задачи удаления растут с количеством записей. Поэтому cleanup,
+resume-derived cleanup, retention и abort используют общий `removeTree`: streaming
+`opendir` с буфером32, последовательный обход, ограниченная глубина256. Heap cap
+нагрузочного прогона не увеличивается. Ошибки кроме ENOENT при force не скрываются.
+
+Символические ссылки удаляются как ссылки, внешние targets не обходятся; hardlink
+удаляет только свою directory entry. Корень файловой системы запрещён. Это операция
+над принадлежащим процессу стабильным деревом под project lease либо offline/private
+temporary root; защита от конкурентного изменения каталогов другим пользователем
+того же UID не заявляется. Потребление памяти зависит от глубины, не количества URL.

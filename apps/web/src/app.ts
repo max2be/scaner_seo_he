@@ -5,16 +5,19 @@ import { registerAuth, type WebAuthConfig } from './auth.js';
 import { ApiInputError } from './input.js';
 import { CredentialOriginsSchema } from './credentials.js';
 import { registerRoutes } from './routes.js';
+import { registerUi } from './ui.js';
 export const HealthSchema = z.object({ status: z.enum(['ok', 'unavailable']) }).strict();
 export interface WebOptions {
     auth?: WebAuthConfig;
     now?: () => number;
     concurrency?: number;
     backendCredentialOrigins?: Record<string, string[]>;
+    uiDirectory?: string;
 }
 export function buildApp(dataDir: string, options: WebOptions = {}) {
     const app = Fastify({ logger: false, trustProxy: false, bodyLimit: 1048576, requestTimeout: 15000, connectionTimeout: 15000, routerOptions: { maxParamLength: 200 } });
-    registerAuth(app, dataDir, options.auth, options.now);
+    const publicUiPaths = registerUi(app, options.uiDirectory);
+    registerAuth(app, dataDir, options.auth, options.now, publicUiPaths);
     app.addHook('onSend', async (_request, reply) => {
         reply.header('cache-control', 'no-store');
         reply.header('x-content-type-options', 'nosniff');
@@ -54,8 +57,8 @@ export function buildApp(dataDir: string, options: WebOptions = {}) {
             }
             return reply.code(409).send({ error: error.code, ...(currentScanId ? { currentScanId } : {}) });
         }
-        if (error instanceof Error && ['unknown_rule_override', 'invalid_rule_profile', 'backend_credential_binding_required'].includes(error.message))
-            return reply.code(400).send({ error: error.message === 'backend_credential_binding_required' ? error.message : 'invalid_rule_profile' });
+        if (error instanceof Error && ['unknown_rule_override', 'invalid_rule_profile', 'invalid_scan_schedule', 'backend_credential_binding_required'].includes(error.message))
+            return reply.code(400).send({ error: ['backend_credential_binding_required', 'invalid_scan_schedule'].includes(error.message) ? error.message : 'invalid_rule_profile' });
         if (isMissing(error))
             return reply.code(404).send({ error: 'resource_not_found' });
         if (error instanceof Error && /^(?:stale_or_invalid_(?:report|diff)_cursor|invalid_(?:report|diff)_cursor)$/.test(error.message))

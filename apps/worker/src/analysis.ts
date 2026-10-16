@@ -5,7 +5,7 @@ import { SafeHttpClient, RuleEngine, seoRules, normalizedTarget, type RuleContex
 import { parsePageFacts, normalizeUrl } from '@hsi/sources';
 import { DurableDiscoveryStore } from '@hsi/storage';
 import type { ProjectConfig } from '@hsi/contracts';
-const entityRuleIds = new Set(['EXPECTED_PAGE_NOT_200', 'EXPECTED_URL_MISSING_FROM_SITEMAP', 'ROBOTS_DISALLOWED_EXPECTED', 'NOINDEX_EXPECTED_PAGE', 'PRODUCT_DATA_CONFLICT', 'SSR_CONTENT_MISSING']);
+const entityRuleIds = new Set(['EXPECTED_PAGE_NOT_200', 'EXPECTED_URL_MISSING_FROM_SITEMAP', 'ROBOTS_DISALLOWED_EXPECTED', 'NOINDEX_EXPECTED_PAGE', 'PRODUCT_DATA_CONFLICT']);
 const genericEngine = new RuleEngine(seoRules.filter(rule => !entityRuleIds.has(rule.id)));
 const entityEngine = new RuleEngine(seoRules.filter(rule => entityRuleIds.has(rule.id) || rule.id === 'CANONICAL_CONFLICT'));
 export async function hasExpectedEntity(store: DurableDiscoveryStore, url: string) {

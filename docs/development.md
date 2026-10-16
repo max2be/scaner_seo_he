@@ -1,4 +1,4 @@
-# Разработка: EPIC-01…07
+# Разработка: EPIC-01…09
 
 Требуется Node.js 24.19.0 (major 24), npm 11; Docker Engine + Compose v2 для контейнеров.
 Все команды из корня checkout, без worktree и глобальных npm install.
@@ -36,11 +36,11 @@ DATA_DIR=./data HOST=127.0.0.1 PORT=3001 npm run start:worker
 Проверить локальным запросом `GET /api/health`: HTTP 200 и `{"status":"ok"}`.
 Health проверяет создание, fsync и rename временного файла, удаляя probe после проверки;
 он не возвращает пути, project counts, конфигурацию или секреты.
-Недоступное хранилище даёт 503 без подробностей. Без auth конфигурации private routes — 401; login503, health200. При настроенном admin API работает по сессии; root после входа пока404 (UI — E08).
-Login и защищённый API реализованы. UI только собирается; браузерная панель — EPIC-08.
+Недоступное хранилище даёт 503 без подробностей. Без auth конфигурации private routes — 401; login503, health200. При настроенном admin API работает по сессии. Корень раздаёт login shell; приватные данные загружаются после входа.
+Русская панель реализована в EPIC-08, настройки cron — в EPIC-09.
 Packages sources/reports реализуют discovery/HTML facts и report/diff orchestration через файловые адаптеры.
-Zod URL checks не являются SSRF защитой. EPIC-02 добавляет SafeHttpClient с DNS/IP pinning; см. docs/http-client.md.
-Схемы не являются sanitizer HTML/PII: перед записью нужен redaction этап EPIC-05/06.
+Zod URL checks не являются SSRF защитой. SafeHttpClient реализует с DNS/IP pinning; см. docs/http-client.md.
+Схемы не являются sanitizer HTML/PII: pipeline EPIC-05/06 применяет redaction перед записью.
 
 ## Docker
 
@@ -66,7 +66,7 @@ Helper разрешает имя proxy через DNS/hosts среды, доба
 Проверка TLS и npm integrity остаются включёнными; runtime сеть не меняется.
 
 Контейнеры: UID node, root FS read-only, /tmp tmpfs, общий именованный volume /data.
-Worker не публикует порт, web привязан к localhost:3000. Публикация требует настроенного admin и внешнего HTTPS reverse proxy. Auth/session/CSRF реализованы в EPIC-07, TLS deployment — EPIC-09.
+Worker не публикует порт, web привязан к localhost:3000. Публикация требует настроенного admin и внешнего HTTPS reverse proxy. Auth/session/CSRF реализованы в EPIC-07, TLS deployment реализован в EPIC-09: [runbook](deployment.md).
 `down` сохраняет данные; `down -v` допустим только для disposable smoke environment.
 Не удалять пользовательский volume в setup script.
 
@@ -90,8 +90,36 @@ Handoff/публикация ревью запрещены project overrides, д
 
 Контрактные fixtures двух сайтов проверяют переносимость конфигурации, не сканирование.
 AC-01/04 продукта пока частично покрыты; весь MVP и остальные AC не заявлены выполненными.
-HTTP library и discovery/Entity Feed реализованы; см. docs/discovery.md. Durable lifecycle/locks/resume: см. docs/durable-storage.md. EPIC-05 SEO pipeline: см. docs/seo-rules.md. EPIC-06 отчёты/seek/diff: см. docs/reports.md. EPIC-07 auth/API: см. docs/api-auth.md. Далее EPIC-08: browser UI.
+HTTP library и discovery/Entity Feed реализованы; см. docs/discovery.md. Durable lifecycle/locks/resume: см. docs/durable-storage.md. EPIC-05 SEO pipeline: см. docs/seo-rules.md. EPIC-06 отчёты/seek/diff: см. docs/reports.md. EPIC-07 auth/API: см. docs/api-auth.md. Русская SPA и browser tests: см. docs/web-ui.md. EPIC-09: [scheduler/TLS/backup](deployment.md) и [security review](EPIC-09-SECURITY-REVIEW.md). EPIC-10: [demo/load/pilot](pilot.md) и [AC matrix](ACCEPTANCE-MATRIX.md).
 Никаких production сканов без разрешения владельца.
 
 Для durable worker требуется Linux `/usr/bin/flock`; Dockerfile проверяет наличие.
 `JOB_CONCURRENCY=2` должен совпадать с CLI `--concurrency` и сохранённым pool.json.
+
+## Browser acceptance EPIC-08
+
+После build: `npx playwright install --with-deps chromium && npm run test:e2e`.
+В этой cloud среде Chromium уже установлен; используйте
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e`.
+Операторские auth env не нужны для тестов: TLS fixture имеет отдельные синтетические
+credentials и временное DATA_DIR. Порт127.0.0.1:4178 должен быть свободен; чужой процесс
+не переиспользуется. Только собственная панель, без production targets.
+Подробности, контракты и ограничения: [web-ui.md](web-ui.md).
+
+## Планировщик и эксплуатация EPIC-09
+
+По умолчанию `SCHEDULER_ENABLED=false`. Для локальных сценариев используйте synthetic
+профиль без внешних URL; включение расписаний реальных сайтов требует разрешения владельца.
+`npm run backup -- create|restore --offline --source PATH --target NEW_PATH` — только после
+остановки всех writers; целевой каталог должен отсутствовать. TLS overlay, необходимые
+права, порядок восстановления и ограничения: [deployment.md](deployment.md).
+После сборки production image: `node scripts/smoke-tls.mjs`; backup smoke можно выполнить
+в runtime image через `node --input-type=module < scripts/smoke-backup.mjs`.
+
+## EPIC-10: воспроизводимая приёмка
+
+`npm run demo` после build выполняет два локальных synthetic сайта через настоящий worker.
+Тест `pilot-demo.test.ts` входит в check; `npm run benchmark:pipeline` — отдельная долгая
+нагрузка10k/100k с cap128 MiB. Не запускайте её одновременно с check/report-memory: они
+делят CPU/fsync и могут исчерпать timeout тестового runner. Docker tmpfs вариант и его
+границы описаны в [pilot.md](pilot.md). Никаких настоящих сканов для запуска не требуется.

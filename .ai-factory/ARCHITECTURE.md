@@ -30,7 +30,11 @@ bounded buffers; запрещено читать весь каталог/HTML в
 EPIC-01 предоставляет только общедоступный минимальный health endpoint.
 EPIC-07: health публичен, login требует Origin/rate limit, остальные API требуют admin session.
 Writes требуют Origin/CSRF, download/file paths закрыты. Без auth config private routes401.
-UI функции — EPIC-08; UI skeleton собирается, но не публикуется. См. docs/api-auth.md.
+SPA EPIC-08 раздаётся через exact static allowlist: публичен только login shell/JS/CSS,
+все данные и выгрузки требуют admin cookie. См. docs/api-auth.md и docs/web-ui.md.
 Никаких HTTP requests к пользовательским URL до EPIC-02: DNS resolve + public IP
 policy IPv4/IPv6 + connection-bound pinning + повторная проверка редиректов + TLS.
-Private backend не включён. Это открытый вопрос пилота, не разрешение SSRF bypass.
+Backend Entity Feed: только публичный HTTPS, allowlist и привязка tokenEnv к origin.
+EPIC-09: cron selection в core; scheduler worker только ставит durable queue под project flock,
+сохраняет additive SchedulerState1.0 и не выполняет crawler в timer/web. Offline backup
+копирует файловые данные без auth; TLS nginx overlay не имеет доступа к DATA_DIR.

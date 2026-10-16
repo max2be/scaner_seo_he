@@ -65,7 +65,9 @@ export class ProjectRepository {
         if (revision && revision !== current.revision)
             throw new StorageConflict('project_revision_changed');
         const { archived, ...config } = patch;
-        const project = ProjectConfigSchema.parse({ ...current.project, ...config });
+        const merged = { ...current.project, ...config };
+        if (merged.scanSchedule === null) delete merged.scanSchedule;
+        const project = ProjectConfigSchema.parse(merged);
         if (Object.keys(config).length)
             await atomicJson(await safeDataPath(this.root, 'projects', id, 'project.json'), project);
         if (archived !== undefined)

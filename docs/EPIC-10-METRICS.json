@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0",
+  "status": "verified_with_open_load_gate",
+  "date": "2026-10-16",
+  "productionRequests": 0,
+  "acceptance": {
+    "sites": 2,
+    "scans": 8,
+    "assertions": 33,
+    "labelledCases": 13,
+    "passedLabelledCases": 13,
+    "falseP0InLabelledNegatives": 0,
+    "baselineFindings": 11,
+    "standaloneFindings": 5,
+    "releaseDiff": {
+      "new": 0,
+      "persisting": 8,
+      "resolved": 3,
+      "unknown": 0
+    }
+  },
+  "verification": {
+    "vitestTests": 469,
+    "vitestFiles": 31,
+    "chromiumScenarios": 16
+  },
+  "pipelineRuns": [
+    {
+      "schemaVersion": "1.0",
+      "count": 10000,
+      "processed": 10000,
+      "requests": 10000,
+      "status": "completed",
+      "urlsAnalyzed": 10000,
+      "findings": 100,
+      "pages": 2,
+      "paged": 100,
+      "heapCapMiB": 128,
+      "sampledHeapMiB": 41.45655059814453,
+      "peakRssMiB": 121.08203125,
+      "journalBytes": 24348345,
+      "diskMiB": 187.69921875,
+      "seconds": 370.581872531,
+      "transport": "synthetic-replay-no-network",
+      "productionRequests": 0,
+      "filesystem": "local-filesystem",
+      "notes": [
+        "Captured before bounded cleanup change; process exited successfully.",
+        "Timing overlapped regression checks; not an isolated storage SLA.",
+        "Peak RSS sampled before cleanup in this earlier runner."
+      ]
+    }
+  ],
+  "pending": [
+    "Full 100000 URL pipeline completion after bounded cleanup fix: deferred after user questioned the need for further testing."
+  ],
+  "failedRuns": [
+    {
+      "count": 100000,
+      "filesystem": "docker-tmpfs",
+      "heapCapMiB": 128,
+      "result": "OOM in filesystem operation; excluded from successful runs"
+    }
+  ],
+  "cleanupRegression": {
+    "builtin512512Entries": "OOM at 128 MiB heap",
+    "boundedCleanupRemainingTreePeakRssMiB": 53.05859375,
+    "newIndependentTestFiles": 100100,
+    "newIndependentTestHeapCapMiB": 32,
+    "newIndependentTestPassed": true,
+    "bounded512512Entries": {
+      "files": 512512,
+      "heapCapMiB": 128,
+      "boundedCleanupPassed": true,
+      "peakRssMiB": 53.57421875,
+      "seconds": 70.05904258199999
+    }
+  },
+  "mobileReflow": {
+    "viewportPx": 390,
+    "beforeScrollWidthPx": 3050,
+    "afterScrollWidthPx": 390
+  },
+  "limitations": [
+    "Replay transport does not measure HTTP throughput or production duration.",
+    "tmpfs footprint consumes filesystem RAM outside Node RSS; container memory capped at 4 GiB.",
+    "No 100k physical-disk throughput or power-loss durability claim.",
+    "Human business/security sign-off and owner-approved production pilot remain separate."
+  ],
+  "stoppedRuns": [
+    {
+      "count": 100000,
+      "filesystem": "docker-tmpfs",
+      "heapCapMiB": 128,
+      "reason": "Stopped after user requested reassessment of further testing; not a passed full load check.",
+      "lastLoggedProgress": {
+        "event": "synthetic_pipeline_progress",
+        "count": 100000,
+        "processed": 89774,
+        "elapsedSeconds": 1980
+      },
+      "completedMetricsAvailable": false
+    }
+  ],
+  "manualGates": {
+    "ownerBusinessSecuritySignOff": "pending",
+    "productionPilot": "not_run_optional"
+  }
+}

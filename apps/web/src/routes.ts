@@ -5,12 +5,15 @@ import { Readable } from 'node:stream';
 import { constants } from 'node:fs';
 import { relative } from 'node:path';
 import { ProjectConfigSchema, ProjectPatchSchema, ProjectViewSchema, StartScanSchema, ValidateProjectSchema, ApiListQuerySchema, ApiFindingQuerySchema, ApiDiffQuerySchema, OperationSchema, FindingPageSchema, FindingSchema, DiffPageSchema, DiffSummarySchema, ReportSummarySchema, ScanManifestSchema, ScanProgressSchema, DownloadKindSchema, AnyCheckpointSchema, safeId } from '@hsi/contracts';
-import { validateRuleProfile } from '@hsi/core';
+import { validateRuleProfile, validateSchedule } from '@hsi/core';
 import { normalizeUrl } from '@hsi/sources';
 import { FileReportReader, FileDiffReader, ProjectRepository, OperationRepository, ScanRepository, StorageConflict, safeDataPath, readSmallJson } from '@hsi/storage';
 import { parseInput } from './input.js';
 import { assertCredentialOrigin } from './credentials.js';
 import { apiDocument, type ApiSpec } from './openapi.js';
+import { readDiagnostics } from './diagnostics.js';
+import { ScanDiagnosticsQuerySchema, ScanDiagnosticsPageSchema, SchedulerStateSchema } from '@hsi/contracts';
+import { readSchedulerState } from '@hsi/storage';
 const idParams = z.object({ id: safeId });
 const scanParams = idParams.extend({ scanId: safeId });
 const empty = z.object({}).strict();
@@ -72,10 +75,15 @@ export function registerRoutes(app: FastifyInstance, dataDir: string, concurrenc
     });
     add('POST', '/api/projects', { summary: 'Create validated profile; secrets are env references only', body: ProjectConfigSchema, response: ProjectViewSchema, status: 201 }, async (request, reply) => {
         const project = parseInput(ProjectConfigSchema, request.body);
+        if (project.scanSchedule) validateSchedule(project.scanSchedule);
         assertCredentialOrigin(project, bindings);
         return reply.code(201).send(await projects.create(project));
     });
     add('GET', '/api/projects/:id', { summary: 'Read profile; revision is usable with If-Match', response: ProjectViewSchema }, async (request) => projects.read(await projectId(request)));
+    add('GET', '/api/projects/:id/schedule', { summary: 'Last committed scheduler observation, not a live worker heartbeat', response: z.object({ schemaVersion: z.literal('1.0'), state: SchedulerStateSchema.nullable() }).strict() }, async request => {
+        const id = await projectId(request);
+        return { schemaVersion: '1.0', state: await readSchedulerState(dataDir, id) ?? null };
+    });
     add('PATCH', '/api/projects/:id', { summary: 'Top-level patch; nested objects replace, archive/restore supported', body: ProjectPatchSchema, response: ProjectViewSchema }, async (request) => {
         const id = await projectId(request);
         parseInput(ProjectPatchSchema, request.body);
@@ -83,8 +91,13 @@ export function registerRoutes(app: FastifyInstance, dataDir: string, concurrenc
             await mutable(id);
             const { archived: _archived, ...patch } = parseInput(ProjectPatchSchema, request.body);
             void _archived;
-            if (Object.keys(patch).length)
-                assertCredentialOrigin(parseInput(ProjectConfigSchema, { ...(await projects.read(id)).project, ...patch }), bindings);
+            if (Object.keys(patch).length) {
+                const merged = { ...(await projects.read(id)).project, ...patch };
+                if (merged.scanSchedule === null) delete merged.scanSchedule;
+                const project = parseInput(ProjectConfigSchema, merged);
+                if (project.scanSchedule) validateSchedule(project.scanSchedule);
+                assertCredentialOrigin(project, bindings);
+            }
             const revision = request.headers['if-match'];
             if (revision && typeof revision !== 'string')
                 throw new Error('invalid_revision');
@@ -103,6 +116,7 @@ export function registerRoutes(app: FastifyInstance, dataDir: string, concurrenc
         return locked(id, async () => {
             await mutable(id);
             const config = body.config ?? (await projects.read(id)).project;
+            if (config.scanSchedule) validateSchedule(config.scanSchedule);
             if (config.id !== id)
                 throw new StorageConflict('project_identity_mismatch');
             assertCredentialOrigin(config, bindings);
@@ -141,6 +155,11 @@ export function registerRoutes(app: FastifyInstance, dataDir: string, concurrenc
             throw new StorageConflict('scan_not_active');
         await scans.requestCancel(v.id, v.scanId);
         return reply.code(202).send({ schemaVersion: '1.0', requested: true });
+    });
+    add('GET', '/api/projects/:id/scans/:scanId/diagnostics', { summary: 'Bounded source/limit errors for a stopped snapshot', query: ScanDiagnosticsQuerySchema, response: ScanDiagnosticsPageSchema }, async (request) => {
+        const value = await scanIdentity(request);
+        if (['queued', 'running'].includes(value.manifest.status)) throw new StorageConflict('scan_not_finished');
+        return readDiagnostics(dataDir, value.id, value.scanId, parseInput(ScanDiagnosticsQuerySchema, request.query));
     });
     add('POST', '/api/projects/:id/scans/:scanId/resume', { summary: 'Queue resume; crawler remains in worker', body: empty, response: OperationSchema, status: 202 }, async (request, reply) => {
         parseInput(empty, request.body ?? {});
@@ -192,14 +211,30 @@ export function registerRoutes(app: FastifyInstance, dataDir: string, concurrenc
             return operations.enqueue(v.after.id, { kind: 'compare', beforeScanId: v.otherId, afterScanId: v.after.scanId });
         });
     });
-    add('GET', '/api/projects/:id/scans/:scanId/compare/:otherId', { summary: 'Read ready diff; GET does not write', query: ApiDiffQuerySchema, response: z.object({ summary: DiffSummarySchema, page: DiffPageSchema }).strict() }, async (request) => {
-        const q = parseInput(ApiDiffQuerySchema, request.query), v = await comparison(request);
+    async function readyComparison(request: FastifyRequest) {
+        const v = await comparison(request);
         await safeDataPath(dataDir, 'projects', v.after.id, 'scans', v.after.scanId, 'comparisons', v.otherId, 'diff.json');
         const reader = await FileDiffReader.open(v.after.directory, v.otherId);
         const summary = reader.descriptor.summary;
         if (summary.projectId !== v.after.id || summary.afterScanId !== v.after.scanId || summary.beforeGeneration !== v.before.descriptor.generation || summary.afterGeneration !== v.after.reader.descriptor.generation)
             throw new StorageConflict('comparison_stale');
-        return { summary, page: await reader.page(q) };
+        return reader;
+    }
+    add('GET', '/api/projects/:id/scans/:scanId/compare/:otherId', { summary: 'Read ready diff; GET does not write', query: ApiDiffQuerySchema, response: z.object({ summary: DiffSummarySchema, page: DiffPageSchema }).strict() }, async (request) => {
+        const q = parseInput(ApiDiffQuerySchema, request.query), reader = await readyComparison(request);
+        return { summary: reader.descriptor.summary, page: await reader.page(q) };
+    });
+    add('GET', '/api/projects/:id/scans/:scanId/compare/:otherId/download/:kind', { summary: 'Stream full ready delta attachment; no generation on GET', response: z.string(), binary: true, contentType: 'application/octet-stream' }, async (request, reply) => {
+        const { kind } = parseInput(scanParams.extend({ otherId: safeId, kind: z.enum(['csv', 'jsonl', 'html']) }), request.params);
+        const reader = await readyComparison(request);
+        const path = await safeDataPath(dataDir, relative(dataDir, reader.directory + '/diff.' + kind));
+        const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+        const info = await file.stat();
+        if (!info.isFile()) { await file.close(); throw new Error('invalid_download_file'); }
+        reply.header('content-type', kind === 'csv' ? 'text/csv; charset=utf-8' : kind === 'html' ? 'text/html; charset=utf-8' : 'application/x-ndjson');
+        reply.header('content-length', info.size).header('content-disposition', 'attachment; filename="delta.' + kind + '"');
+        reply.header('content-security-policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+        return reply.send(file.createReadStream({ autoClose: true }));
     });
     add('GET', '/api/projects/:id/scans/:scanId/download/:kind', { summary: 'Stream whitelisted attachment; no filesystem paths accepted', response: z.string(), binary: true, contentType: 'application/octet-stream' }, async (request, reply) => {
         const v = await scanIdentity(request), { kind } = parseInput(scanParams.extend({ kind: DownloadKindSchema }), request.params);

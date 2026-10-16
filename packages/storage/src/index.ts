@@ -25,3 +25,7 @@ export { ProjectRepository } from './projects.js';
 export { OperationRepository } from './operations.js';
 export { safeDataPath, readSmallJson, isMissing } from './safe-files.js';
 export { FileAuthStore } from './auth.js';
+export { readSchedulerState } from './schedule-state.js';
+export { createBackup, restoreBackup } from './backup.js';
+
+export { removeTree } from './remove-tree.js';

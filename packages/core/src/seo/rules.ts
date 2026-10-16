@@ -58,8 +58,8 @@ function emit(ctx: RuleContext, rule: Rule, signal: Signal): RuleResult {
   return finding.verdict === 'needs_review' ? { verdict: 'needs_review', finding: finding as Finding & { verdict: 'needs_review' } } : { verdict: 'finding', finding: finding as Finding & { verdict: 'finding' } };
 }
 function rule(id: string, severityDefault: Finding['severity'], applies: (ctx: RuleContext) => boolean,
-  detect: (ctx: RuleContext) => Signal | undefined): Rule {
-  const value: Rule = { id, version: '1.0.0', severityDefault, recommendationKey: id.toLowerCase().replaceAll('_', '-'),
+  detect: (ctx: RuleContext) => Signal | undefined, version = '1.0.0'): Rule {
+  const value: Rule = { id, version, severityDefault, recommendationKey: id.toLowerCase().replaceAll('_', '-'),
     appliesTo: ctx => Boolean(ctx.analysis) && applies(ctx), async detect(ctx) {
       if (!value.appliesTo(ctx)) return na(); const signal = detect(ctx); return signal ? emit(ctx, value, signal) : pass();
     } }; return value;
@@ -167,7 +167,7 @@ export const seoRules: readonly Rule[] = [
   rule('DUPLICATE_MANIFEST', 'INFO', html, ctx => facts(ctx)!.manifestCount > 1 ? { expected: 'At most one manifest link', actual: 'manifest_count=' + facts(ctx)!.manifestCount } : undefined),
   rule('BUTTON_NAV_SUSPECTED', 'P2', html, ctx => facts(ctx)!.buttonNavCount ? { expected: 'Review navigation semantics with rendered application', actual: 'source_button_navigation_hint_count=' + facts(ctx)!.buttonNavCount, review: true } : undefined),
   rule('ANCHOR_HREF_MISSING', 'INFO', html, ctx => facts(ctx)!.anchorWithoutHrefCount ? { expected: 'Review anchors without href; named anchors/actions may be intentional', actual: 'anchor_without_href_count=' + facts(ctx)!.anchorWithoutHrefCount, review: true } : undefined),
-  rule('SSR_CONTENT_MISSING', 'P2', ctx => candidateIndexable(ctx) && html(ctx), ctx => facts(ctx)!.contentCharacters < 80 && facts(ctx)!.products.length === 0 ? { expected: 'Review whether expected content is available in server HTML', actual: 'limited_server_html_content', review: true } : undefined),
+  rule('SSR_CONTENT_MISSING', 'P2', indexable, ctx => facts(ctx)!.contentCharacters < 80 && facts(ctx)!.products.length === 0 ? { expected: 'Review whether expected content is available in server HTML', actual: 'limited_server_html_content', review: true } : undefined, '1.0.1'),
   rule('RESPONSE_CONTENT_TYPE_INVALID', 'P2', ctx => expectedPage(ctx) && status(ctx) === 200 && !/\.(?:pdf|xml|json|jpe?g|png|webp|svg|gif|zip|css|js)$/i.test(new URL(ctx.url.url).pathname), ctx => /^text\/html(?:;|$)|^application\/xhtml\+xml(?:;|$)/i.test(http(ctx)!.evidence.contentType) ? undefined : { expected: 'HTML content type for a landing page', actual: 'unexpected_response_content_type', source: 'http' }),
   rule('IMAGE_ALT_MISSING', 'P2', html, count(f => f.imageMissingAltCount, 'alt attribute exists; empty decorative alt is allowed')),
   rule('IMAGE_DIMENSIONS_MISSING', 'INFO', html, count(f => f.imageMissingSizeCount, 'Review explicit image dimensions; no browser layout claim')),

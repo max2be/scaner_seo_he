@@ -1,5 +1,6 @@
+import { removeTree } from './remove-tree.js';
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DiffRecordSchema, DiffSummarySchema, DiffPointerSchema, DiffDescriptorSchema, DiffPageQuerySchema, DiffPageSchema, FindingCursorSchema, safeId, type DiffBuildPort, type DiffRecord, type DiffSummary } from '@hsi/contracts';
 import { BufferedFiles, pointer, readPointer, typedJsonl, syncTree, reportHash } from './report-files.js';
@@ -58,7 +59,7 @@ export class FileDiffWriter implements DiffBuildPort {
     }
     async abort() {
         if (!this.published)
-            await rm(this.directory, { recursive: true, force: true });
+            await removeTree(this.directory, { force: true });
     }
 }
 export class FileDiffReader {

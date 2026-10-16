@@ -7,3 +7,6 @@ coverage/
 .env.*
 !.env.example
 !deploy/.env.example
+
+/test-results/
+/playwright-report/

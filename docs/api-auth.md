@@ -1,8 +1,9 @@
 # Авторизация и API — EPIC-07
 
-E07 реализует single-admin API; браузерный интерфейс — отдельный EPIC-08. GET health
+E07 реализует single-admin API; браузерный интерфейс добавлен в EPIC-08. GET health
 публичен и минимален. Без настроенного admin остальные данные закрыты401, login503.
-При валидной сессии root пока404: SPA намеренно не публикуется раньше E08.
+Root и точные имена собранных JS/CSS публичны только для экрана входа; они не содержат
+данных проектов или сессии. Неизвестные static paths и любые private API остаются закрыты.
 
 ## Настройка администратора
 
@@ -104,9 +105,11 @@ cross-field refinements дополнительно проверяются runtim
 | POST | `/projects/:id/scans/:scanId/cancel` | Control message202, even while worker holds scan lock |
 | POST | `/projects/:id/scans/:scanId/resume` | Durable resume operation202 |
 | GET | `/projects/:id/scans/:scanId/summary` | Ready report summary |
+| GET | `/projects/:id/scans/:scanId/diagnostics` | Source/limit errors, stopped snapshot, bounded cursor page |
 | GET | `/projects/:id/scans/:scanId/findings` | Seek/filter page |
 | GET | `/projects/:id/scans/:scanId/findings/:findingId` | Evidence within selected project/scan |
 | POST/GET | `/projects/:id/scans/:scanId/compare/:otherId` | Queue comparison / read ready diff |
+| GET | `/projects/:id/scans/:scanId/compare/:otherId/download/:kind` | Existing full delta csv/jsonl/html, attachment |
 | GET | `/projects/:id/scans/:scanId/download/:kind` | Whitelisted attachment |
 
 Single admin видит все проекты инсталляции; это не RBAC/tenant isolation. Каждый scan,
@@ -175,5 +178,19 @@ DOCKER_CONFIG=/workspace/.docker-hsi docker compose -f deploy/compose.yaml exec 
 
 Команды выполняются из корня checkout; внутри image working directory=/app.
 Smoke создаёт отдельное временное хранилище, не использует пользовательский ADMIN hash
-и не изменяет deployment configuration. Нельзя выдавать local smoke за готовый browser UI:
-AC-03 API часть выполнена в E07, UI форма остаётся E08.
+и не изменяет deployment configuration. Local socket smoke не является проверкой browser TLS.
+Browser acceptance EPIC-08 выполняется отдельно через `npm run test:e2e`; см. [панель](web-ui.md).
+
+## Расписания — EPIC-09
+
+`scanSchedule: {cron, timezone}` при создании/редактировании/validate проходит числовой
+5-field cron parser и проверку IANA timezone. Невозможная дата или неподдерживаемый
+синтаксис →400 `invalid_scan_schedule`. Старые profiles читаются как прежде; ошибочный
+legacy cron не запускается планировщиком. В PATCH `scanSchedule:null` удаляет поле;
+в persisted ProjectConfig1.0 null не записывается. Пропущенное поле PATCH сохраняет настройку.
+
+`GET /api/projects/:id/schedule` — private read-only ответ
+`{schemaVersion:"1.0", state: SchedulerState|null}`. Null означает отсутствие snapshot,
+не состояние worker. Новая additive запись: `projects/ID/scheduler.json`, schemaVersion1.0;
+слот и идентификатор pending проверяются при чтении. Endpoint не запускает scheduler.
+Подробности DST, catch-up, opt-in и offline recovery: [deployment.md](deployment.md).

@@ -19,3 +19,4 @@ export type { BodySink, BodySinkFactory } from './http/transport.js';
 export { RuleEngine, validateRuleProfile, type EngineResult, type RuleEvaluation } from './seo/engine.js';
 export { seoRules, findingId, normalizedTarget, expectedIndexable, trustedEntity } from './seo/rules.js';
 export type { AnalysisContext } from './seo/context.js';
+export { validateSchedule, latestScheduledAt, type Schedule } from './schedule.js';

@@ -1,3 +1,4 @@
+import { removeTree } from './remove-tree.js';
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, rm, stat, writeFile, link } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
@@ -71,7 +72,7 @@ export class DurableDiscoveryStore implements DiscoveryStore, DiscoveryRecovery 
       }
       if (digest.copy().digest('hex') !== checkpoint.journalSha256) throw new Error('journal_checksum_mismatch');
       await journal.truncate(checkpoint.journalBytes); await journal.sync();
-      await rm(join(directory, 'derived'), { recursive: true, force: true });
+      await removeTree(join(directory, 'derived'), { force: true });
       derived = await FileDiscoveryStore.at(join(directory, 'derived'));
       const store = new DurableDiscoveryStore(directory, derived, journal, checkpoint);
       for await (const { raw } of journalLines(journal, checkpoint.journalBytes)) await store.apply(DurableEventV11Schema.parse(JSON.parse(raw.toString('utf8'))));

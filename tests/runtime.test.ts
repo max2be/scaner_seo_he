@@ -15,7 +15,7 @@ describe('M0 service boundaries', () => {
       const health = await app.inject({ url: '/api/health' });
       expect(health.statusCode).toBe(200); expect(health.json()).toEqual({ status: 'ok' });
       expect(health.headers['cache-control']).toBe('no-store');
-      for (const url of ['/', '/api/projects', '/api/projects/demo/scans/a/download/html', '/data/projects/demo/project.json']) {
+      for (const url of ['/api/projects', '/api/projects/demo/scans/a/download/html', '/data/projects/demo/project.json', ...(_name === 'worker' ? ['/'] : [])]) {
         const result = await app.inject({ url }); expect(result.statusCode).toBe(401);
         expect(result.json()).toEqual({ error: 'authentication_required' });
       }

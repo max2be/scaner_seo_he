@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0",
+  "id": "editorial-site",
+  "name": "Example Editorial Site",
+  "baseUrl": "https://content.example.org",
+  "allowedHosts": [
+    "content.example.org"
+  ],
+  "discovery": {
+    "sitemapUrls": [
+      "https://content.example.org/sitemap.xml"
+    ],
+    "seedUrls": [
+      "https://content.example.org/"
+    ],
+    "crawlLinks": true,
+    "maxDepth": 8,
+    "queryPolicy": {
+      "mode": "allowlist",
+      "allowedKeys": [
+        "page"
+      ],
+      "dropTrackingKeys": [
+        "utm_*",
+        "gclid",
+        "yclid"
+      ]
+    },
+    "maxUrls": 100000
+  },
+  "canonicalPolicy": {
+    "trailingSlash": "preserve",
+    "expectedScheme": "https",
+    "preferredHost": "content.example.org",
+    "checkSelfCanonical": false
+  },
+  "http": {
+    "userAgent": "HeadlessSEOInspector/1.0 (+site-owner-diagnostic)",
+    "respectRobots": true,
+    "requestsPerSecondPerHost": 1,
+    "concurrency": 2,
+    "timeoutMs": 15000,
+    "maxResponseBytes": 5000000,
+    "maxRedirects": 8,
+    "maxRetries": 2
+  },
+  "sources": {
+    "backend": {
+      "enabled": false
+    }
+  },
+  "reports": {
+    "keepLastRuns": 12,
+    "htmlEnabled": true
+  }
+}

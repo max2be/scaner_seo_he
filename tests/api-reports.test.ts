@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { readFile, readdir, symlink } from 'node:fs/promises';
+import { readFile, readdir, symlink, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FileReportReader, ScanRepository } from '@hsi/storage';
 import { defaultRuleProfile } from '@hsi/contracts';
@@ -29,6 +29,25 @@ async function scanFixture() {
     return { app, directory, api, project, root, repo, site, url: root + '/scans/before', hits: () => hits };
 }
 describe('Authorized findings/download/diff (AC-26)', () => {
+    it('pages stopped source diagnostics and rejects stale/cross-scan cursors without exposing file paths', async () => {
+        const { app, api, url, root, repo, project } = await scanFixture();
+        const path = join(repo.scanPath(project.id, 'before'), 'scanner_errors.jsonl');
+        const issue = { schemaVersion: '1.0', kind: 'source_error', source: 'sitemap', code: 'sitemap_unavailable', url: project.baseUrl + '/map.xml' };
+        await appendFile(path, (JSON.stringify(issue) + '\n').repeat(105));
+        expect((await app.inject({ url: url + '/diagnostics' })).statusCode).toBe(401);
+        const first = await api.request('GET', url + '/diagnostics?limit=50');
+        expect(first.statusCode).toBe(200); expect(first.json().items).toHaveLength(50);
+        const cursor = first.json().nextCursor;
+        expect(cursor).toBeTruthy();
+        const second = await api.request('GET', url + '/diagnostics?limit=50&cursor=' + encodeURIComponent(cursor));
+        expect(second.json().items).toHaveLength(50);
+        expect((await api.request('GET', url + '/diagnostics?limit=101')).statusCode).toBe(400);
+        expect((await api.request('GET', url + '/diagnostics?cursor=bad')).statusCode).toBe(409);
+        await appendFile(path, JSON.stringify(issue) + '\n');
+        expect((await api.request('GET', url + '/diagnostics?cursor=' + encodeURIComponent(cursor))).statusCode).toBe(409);
+        await api.request('POST', root + '/scans', { scanId: 'still-queued' });
+        expect((await api.request('GET', root + '/scans/still-queued/diagnostics')).statusCode).toBe(409);
+    });
     it('pages and filters ready findings, looks up stable ID evidence and never performs HTTP in web', async () => {
         const { api, url, hits } = await scanFixture();
         const previous = hits();
@@ -95,7 +114,7 @@ describe('Authorized findings/download/diff (AC-26)', () => {
         expect((await app.inject({ url: `/api/projects/${project.id}/scans/alias/download/manifest` })).statusCode).toBe(401);
     });
     it('queues and reads real diff, detects stale generations, and leaves GET filesystem unchanged', async () => {
-        const { api, url, root, repo, project, site, directory } = await scanFixture();
+        const { api, app, url, root, repo, project, site, directory } = await scanFixture();
         await api.request('POST', root + '/scans', { scanId: 'after', rules: { ...defaultRuleProfile(), checkTrailingSlash: false } });
         await runScan(repo, project.id, 'after', { discovery: { client: site.client() } });
         const compare = root + '/scans/after/compare/before';
@@ -109,6 +128,15 @@ describe('Authorized findings/download/diff (AC-26)', () => {
         expect(result.statusCode).toBe(200);
         expect(result.json().summary.counts.persisting).toBeGreaterThan(0);
         expect(result.json().page.items).toHaveLength(1);
+        for (const kind of ['csv', 'jsonl', 'html']) {
+            const exported = await api.request('GET', compare + '/download/' + kind);
+            expect(exported.statusCode).toBe(200);
+            expect(exported.headers['content-disposition']).toContain('attachment;');
+            expect((await app.inject({ url: compare + '/download/' + kind })).statusCode).toBe(401);
+            expect((await app.inject({ method: 'HEAD', url: compare + '/download/' + kind })).statusCode).toBe(401);
+            if (kind === 'html') expect(exported.headers['content-security-policy']).toContain('sandbox');
+        }
+        expect((await api.request('GET', compare + '/download/%2e%2e%2fproject.json')).statusCode).toBe(400);
         const pointer = await readFile(join(repo.scanPath(project.id, 'after'), 'comparisons/before/diff.json'), 'utf8');
         await api.request('GET', compare);
         expect(await readFile(join(repo.scanPath(project.id, 'after'), 'comparisons/before/diff.json'), 'utf8')).toBe(pointer);

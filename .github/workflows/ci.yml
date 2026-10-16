@@ -14,7 +14,13 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check
       - run: npm run smoke
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: docker compose -f deploy/compose.yaml up -d --build --wait
       - run: curl --fail http://127.0.0.1:3000/api/health
+      - run: docker compose -f deploy/compose.yaml exec -T inspector-web node --input-type=module < scripts/smoke-api.mjs
+      - run: docker compose -f deploy/compose.yaml exec -T inspector-worker node --input-type=module < scripts/smoke-reports.mjs
+      - run: docker compose -f deploy/compose.yaml exec -T inspector-worker node --input-type=module < scripts/smoke-backup.mjs
+      - run: node scripts/smoke-tls.mjs
       - run: docker compose -f deploy/compose.yaml down -v
         if: always()

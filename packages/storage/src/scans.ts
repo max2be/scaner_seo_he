@@ -1,3 +1,4 @@
+import { removeTree } from './remove-tree.js';
 import { randomUUID, createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, readdir, rm, cp, rename, stat } from 'node:fs/promises';
@@ -9,6 +10,9 @@ import { DurableDiscoveryStore } from './durable-discovery.js';
 import { FileLease, StorageConflict } from './locks.js';
 import { ProjectRepository } from './projects.js';
 import { OperationRepository } from './operations.js';
+import { SchedulerStateSchema, type SchedulerState, type ProjectView } from '@hsi/contracts';
+import { readSchedulerState, validateSchedulerIdentity } from './schedule-state.js';
+import { safeDataPath } from './safe-files.js';
 const now = () => new Date().toISOString();
 const terminal = new Set(['completed', 'incomplete', 'failed', 'canceled']);
 const transitions: Record<ScanManifest['status'], ScanManifest['status'][]> = {
@@ -48,7 +52,7 @@ export class ScanRepository {
     lease.assertHeld(); const parent = join(this.projectPath(projectId), 'scans');
     const entries = await readdir(parent, { withFileTypes: true }).catch(error => { if (isMissing(error)) return []; throw error; });
     for (const entry of entries) if (entry.isDirectory() && /^\.[a-f0-9-]{36}\.staging$/.test(entry.name))
-      await rm(join(parent, entry.name), { recursive: true, force: true });
+      await removeTree(join(parent, entry.name), { force: true });
   }
   async manifest(projectId: string, scanId: string) {
     const value = ScanManifestSchema.parse(JSON.parse(await readFile(join(this.scanPath(projectId, scanId), 'manifest.json'), 'utf8')));
@@ -76,6 +80,50 @@ export class ScanRepository {
       const current = await new ProjectRepository(this.root).read(projectId);
       const profile = RuleProfileSchema.parse(rules); validate?.(current.project, profile);
       return await this.enqueueLocked(current.project, safeId.parse(scanId), profile, lease);
+    } finally { await lease.release(); }
+  }
+  /** Scheduler intent + queue commit use the same flock as manual starts, operations and project edits. */
+  async scheduleCurrent(projectId: string, observedAt: string, decide: (project: ProjectView, previous: SchedulerState | undefined) => SchedulerState | undefined) {
+    const lease = await this.lock(projectId);
+    lease.onLost(() => process.exit(1));
+    try {
+      const project = await new ProjectRepository(this.root).read(projectId);
+      const previous = await readSchedulerState(this.root, projectId);
+      if (previous && Date.parse(observedAt) < Date.parse(previous.lastCheckedAt)) return previous;
+      const persist = async (state: SchedulerState) => {
+        const parsed = SchedulerStateSchema.parse(state);
+        if (parsed.projectId !== projectId) throw new Error('scheduler_identity_mismatch');
+        validateSchedulerIdentity(parsed);
+        lease.assertHeld();
+        await atomicJson(await safeDataPath(this.root, 'projects', projectId, 'scheduler.json'), parsed);
+        return parsed;
+      };
+      const acknowledge = (state: SchedulerState) => {
+        const { pending, ...rest } = state;
+        return persist({ ...rest, lastCheckedAt: observedAt, outcome: 'queued', lastEnqueuedAt: pending!.scheduledAt, lastScanId: pending!.scanId });
+      };
+      // A published queue directory survives a crash before the acknowledgement. Never enqueue it twice.
+      if (previous?.pending) {
+        try { await this.manifest(projectId, previous.pending.scanId); return await acknowledge(previous); }
+        catch (error) { if (!isMissing(error)) throw error; }
+      }
+      const next = decide(project, previous);
+      if (!next) return previous;
+      const state = SchedulerStateSchema.parse(next);
+      if (!state.pending) return persist(state);
+      await persist(state); // Durable intent precedes the existing atomic queue directory commit.
+      try {
+        try { await this.manifest(projectId, state.pending.scanId); }
+        catch (error) {
+          if (!isMissing(error)) throw error;
+          await this.enqueueLocked(project.project, state.pending.scanId, defaultRuleProfile(), lease);
+        }
+        return await acknowledge(state);
+      } catch (error) {
+        if (!(error instanceof StorageConflict)) throw error; // Keep intent after IO/crash; retry safely.
+        const { pending: _pending, ...rest } = state; void _pending;
+        return persist({ ...rest, outcome: 'skipped_busy' });
+      }
     } finally { await lease.release(); }
   }
   private async enqueueLocked(project: ProjectConfig, scanId: string, profile: RuleProfile, lease: FileLease) {
@@ -156,9 +204,11 @@ export class ScanRepository {
     if (exportRoot === this.root || exportRoot.startsWith(this.root + '/')) throw new Error('export_inside_data');
     const lease = await this.lock(projectId); const removed: string[] = [];
     try {
+      const pendingScheduledScan = (await readSchedulerState(this.root, projectId))?.pending?.scanId;
       const candidates = (await this.list(projectId)).filter(v => terminal.has(v.status));
       for (let i = 0; i < candidates.length; i++) {
         const value = candidates[i]!; const directory = this.scanPath(projectId, value.scanId);
+        if (value.scanId === pendingScheduledScan) continue;
         if (i < policy.keep && (policy.days === undefined || time - Date.parse(value.finishedAt ?? value.createdAt) < policy.days * 86400000)) continue;
         try { await stat(join(directory, 'pinned.json')); continue; } catch (error) { if (!isMissing(error)) throw error; }
         const parent = join(exportRoot, safeId.parse(projectId)); await mkdir(parent, { recursive: true, mode: 0o700 });
@@ -171,14 +221,14 @@ export class ScanRepository {
           archived = true;
         } catch (error) { if (!isMissing(error)) throw error; }
         if (archived) {
-          await rm(directory, { recursive: true }); await syncDirectory(join(this.projectPath(projectId), 'scans')); removed.push(value.scanId); continue;
+          await removeTree(directory); await syncDirectory(join(this.projectPath(projectId), 'scans')); removed.push(value.scanId); continue;
         }
         const temporary = join(parent, '.' + randomUUID() + '.tmp');
         try {
           await cp(directory, temporary, { recursive: true, errorOnExist: true, force: false });
           await syncTree(temporary); await rename(temporary, target); await syncDirectory(parent);
-          await rm(directory, { recursive: true }); await syncDirectory(join(this.projectPath(projectId), 'scans')); removed.push(value.scanId);
-        } finally { await rm(temporary, { recursive: true, force: true }); }
+          await removeTree(directory); await syncDirectory(join(this.projectPath(projectId), 'scans')); removed.push(value.scanId);
+        } finally { await removeTree(temporary, { force: true }); }
       }
       return removed;
     } finally { await lease.release(); }

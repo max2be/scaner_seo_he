@@ -10,7 +10,7 @@ try {
     await checkDataDirectory(config.DATA_DIR);
     const app = buildApp(config.DATA_DIR, { concurrency: config.JOB_CONCURRENCY, backendCredentialOrigins: JSON.parse(config.BACKEND_CREDENTIAL_ORIGINS || '{}'), ...(config.ADMIN_PASSWORD_HASH && config.PUBLIC_ORIGIN ? { auth: { passwordHash: config.ADMIN_PASSWORD_HASH, publicOrigin: config.PUBLIC_ORIGIN } } : {}) });
     await app.listen({ host: config.HOST, port: config.PORT });
-    console.log(JSON.stringify({ event: 'started', service: 'web', stage: 'M6', authenticationConfigured: Boolean(config.ADMIN_PASSWORD_HASH) }));
+    console.log(JSON.stringify({ event: 'started', service: 'web', stage: 'M7', authenticationConfigured: Boolean(config.ADMIN_PASSWORD_HASH) }));
     for (const signal of ['SIGTERM', 'SIGINT'] as const)
         process.once(signal, () => {
             void app.close().then(() => {

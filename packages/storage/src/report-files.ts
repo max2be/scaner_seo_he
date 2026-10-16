@@ -1,3 +1,4 @@
+import { removeTree } from './remove-tree.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, rename, rm, stat, readdir, link } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
@@ -289,7 +290,7 @@ export class FileReportWriter implements ReportBuildPort {
     }
     async abort() {
         if (!this.published)
-            await rm(this.directory, { recursive: true, force: true });
+            await removeTree(this.directory, { force: true });
     }
 }
 export class FileReportReader implements ReportReadPort {

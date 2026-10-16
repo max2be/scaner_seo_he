@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -13,6 +13,14 @@ import { fixture, cleanupFixtures, publicResolver } from './http-fixture.js';
 const roots: string[] = [];
 afterEach(async () => { await cleanupFixtures(); await Promise.all(roots.splice(0).map(p => rm(p, { recursive: true, force: true }))); });
 async function root() { const p = await mkdtemp(join(tmpdir(), 'hsi-resume-')); roots.push(p); return p; }
+async function withinPhase<T>(pending: Promise<T>, phase: string, timeoutMs = 5000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([pending, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('worker_test_phase_timeout:' + phase)), timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
 const feed = (url: string, nextCursor: string | null, snapshotId = 'stable') => ({ schemaVersion: '1.0', snapshotId,
   items: [{ id: nextCursor ? 'one' : 'two', type: 'product', url, publicationState: 'published' }], nextCursor });
 describe('Resume integration and real worker death / AC-23', () => {
@@ -67,18 +75,33 @@ describe('Resume integration and real worker death / AC-23', () => {
       if (req.url === '/') res.end('<a href="/slow">Slow</a>'); else if (hits.filter(p => p === '/slow').length === 1) heldResolve(); else res.end('done'); });
     const project = site.config({ timeoutMs: 10000 }); const data = await root(); const repo = new ScanRepository(data); const scan = await repo.enqueue(project, 'kill-test');
     const child = spawn(process.execPath, ['tests/fixtures/durable/worker.mjs', data, project.id, scan.scanId], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const exited = once(child, 'exit');
+    // Drain pipes even on a slow runner; cleanup must also run after an outer test timeout.
+    child.stdout.resume(); child.stderr.resume();
+    const stopChild = async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      await withinPhase(exited, 'forced_cleanup');
+    };
+    onTestFinished(stopChild);
     try {
-      await held; expect((await repo.manifest(project.id, scan.scanId)).fetched).toBe(1);
+      await withinPhase(Promise.race([held, exited.then(() => { throw new Error('worker_exited_before_request'); })]), 'first_checkpoint_and_request');
+      expect((await repo.manifest(project.id, scan.scanId)).fetched).toBe(1);
       await expect(repo.enqueue(project, 'duplicate')).rejects.toBeInstanceOf(StorageConflict);
-      child.kill(signal); await once(child, 'exit');
-      for (let i = 0; i < 30; i++) { try { const lock = await repo.lock(project.id); await lock.release(); break; } catch (e) { if (!(e instanceof StorageConflict)) throw e; } }
+      expect(child.kill(signal)).toBe(true);
+      const [exitCode, exitSignal] = await withinPhase(exited, 'signal_shutdown');
+      if (signal === 'SIGTERM') { expect(exitCode).toBe(0); expect(exitSignal).toBeNull(); }
+      else expect(exitSignal).toBe('SIGKILL');
+      await expect.poll(async () => {
+        try { const lock = await repo.lock(project.id); await lock.release(); return true; }
+        catch (error) { if (error instanceof StorageConflict) return false; throw error; }
+      }, { timeout: 5000, interval: 20, message: 'Worker guardian must release the project lease after exit' }).toBe(true);
       if (signal === 'SIGKILL') { await workOnce(repo); expect((await repo.manifest(project.id, scan.scanId)).status).toBe('interrupted'); }
       else expect((await repo.manifest(project.id, scan.scanId)).status).toBe('interrupted');
       const result = await runScan(repo, project.id, scan.scanId, { resume: true, discovery: { client: site.client() } });
       expect(result).toMatchObject({ status: 'completed', discovered: 2, fetched: 2, queued: 0, scanComplete: true });
       expect(hits).toEqual(['/', '/slow', '/slow', '/slow/']); // final variant check is new in EPIC-05; completed root is not refetched
-    } finally { if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await once(child, 'exit'); } }
-  });
+    } finally { await stopChild(); }
+  }, 20000); // Process startup, fsync, guardian release, resume and report generation share this budget.
 
   it('cancels an active request and resumes it without counting an aborted response', async () => {
     let started!: () => void; const first = new Promise<void>(resolve => { started = resolve; }); let requests = 0;

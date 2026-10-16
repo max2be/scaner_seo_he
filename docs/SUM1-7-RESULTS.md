@@ -78,3 +78,30 @@ GitHub API из среды отвечает Forbidden, поэтому лог к�
 требует проверки нового запуска в GitHub после push.
 После исправления повторно пройдены чистая установка, `npm run check`
 (416 тестов в 25 файлах, lint/typecheck/build) и `npm run smoke`.
+
+## CI: бюджет process integration test SIGTERM
+
+В предоставленном пользователем логе GitHub Actions прошли lint/typecheck и415
+из416 тестов. Единственное падение — `tests/durable-flow.test.ts`, сценарий
+`survives SIGTERM ...`, общий Vitest timeout5000ms. Лог не указывает конкретную
+долгую фазу, поэтому зависание runtime по нему не установлено. Отдельный локальный
+прогон исходного сценария прошёл примерно за0,7с.
+
+Для двух real-process сценариев SIGKILL/SIGTERM задан общий budget20с, учитывающий
+запуск Node/guardians, fsync, завершение, resume и генерацию отчётов. Ожидание
+первого committed request и остановки worker имеет отдельные deadline5с с названием
+фазы ошибки. SIGTERM обязан завершиться с exit0 без signal; SIGKILL проверяется
+отдельно. На освобождение guardian lease проверяется реальное условие с ограниченным
+polling, вместо30 немедленных попыток без итогового assertion. Exit listener
+регистрируется сразу после spawn, stdout/stderr дренируются, child cleanup выполняется
+также через onTestFinished при внешнем timeout.
+
+Проверки checkpoint, duplicate conflict, interrupted, полного resume и отсутствия
+повторного запроса committed страницы сохранены. Runtime и глобальные test timeouts
+не менялись; retry/skip отсутствуют. Целевой прогон durable-flow+durable-storage:
+28 тестов прошли. Дополнительно проверен чистый файловый снимок опубликованного
+`sum1-7` без незакоммиченного EPIC-08: clean install, lint/typecheck/build,
+416 тестов в25 файлах (включая100k benchmark), web/worker smoke — успешно.
+В этом полном прогоне SIGTERM занял0,54с. Это локальная проверка отправляемого CI-fix,
+а не подтверждение нового зелёного запуска GitHub Actions; его результат проверяется
+после push в GitHub.

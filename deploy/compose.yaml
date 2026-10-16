@@ -1,0 +1,38 @@
+name: headless-seo-inspector
+x-common: &common
+  image: hsi:0.1.0
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  volumes:
+    - inspector-data:/data
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 15s
+services:
+  inspector-web:
+    <<: *common
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+      PORT: 3000
+      JOB_CONCURRENCY: ${JOB_CONCURRENCY:-2}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+      BACKEND_CREDENTIAL_ORIGINS: ${BACKEND_CREDENTIAL_ORIGINS:-}
+    ports:
+      - '127.0.0.1:3000:3000'
+  inspector-worker:
+    <<: *common
+    command: [node, apps/worker/dist/main.js]
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+      PORT: 3001
+      JOB_CONCURRENCY: ${JOB_CONCURRENCY:-2}
+volumes:
+  inspector-data:

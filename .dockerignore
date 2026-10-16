@@ -1,10 +1,10 @@
 .git
-.github
 node_modules
-dist
-coverage
+**/node_modules
+**/dist
+**/*.tsbuildinfo
 data
 .env
-.env.*
-!.env.example
-*.log
+**/.env
+.agents
+.ai-factory

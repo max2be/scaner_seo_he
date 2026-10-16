@@ -1,0 +1,17 @@
+language:
+  ui: ru
+  artifacts: ru
+  technical_terms: keep
+workflow:
+  plan_mode: fast
+  verify_mode: strict
+git:
+  enabled: true
+  base_branch: main
+  create_branches: false
+  skip_push_after_commit: true
+paths:
+  description: .ai-factory/DESCRIPTION.md
+  architecture: .ai-factory/ARCHITECTURE.md
+  plan: .ai-factory/PLAN.md
+  rules_file: .ai-factory/RULES.md

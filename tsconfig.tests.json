@@ -1,0 +1,35 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": true,
+    "paths": {
+      "@hsi/contracts": [
+        "./packages/contracts/src/index.ts"
+      ],
+      "@hsi/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@hsi/sources": [
+        "./packages/sources/src/index.ts"
+      ],
+      "@hsi/storage": [
+        "./packages/storage/src/index.ts"
+      ],
+      "@hsi/reports": [
+        "./packages/reports/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "packages/**/*.ts",
+    "apps/web/src/**/*.ts",
+    "apps/worker/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/dist",
+    "node_modules"
+  ]
+}

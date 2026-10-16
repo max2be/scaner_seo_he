@@ -1,6 +1,6 @@
 # Headless SEO Inspector
 
-Universal SEO diagnostic scanner for headless sites. **Documentation stage: implementation has not started.**
+Universal SEO diagnostic scanner for headless sites. **EPIC-01…07 implemented: skeleton, safe HTTP, discovery, durable scan lifecycle, SEO rules, file reports, scan comparison and authenticated API.**
 
 ## Specifications
 
@@ -13,6 +13,18 @@ Universal SEO diagnostic scanner for headless sites. **Documentation stage: impl
 
 ## Start development with Codex
 
-Read the PRD and technical specification, then implement **EPIC-01 only** from the backlog. Do not hard-code SABOSPORTS or Bitrix-specific assumptions.
+Read the PRD and technical specification, then follow the backlog in order; EPIC-01…07 are implemented. Do not hard-code SABOSPORTS or Bitrix-specific assumptions.
 
-This repository currently contains specifications only; no executable scanner has been implemented.
+The discovery CLI imports sitemap/feed URLs and crawls source HTML with safe HTTP. Durable queue/checkpoints, resume, project locks and retention are implemented; see [scan lifecycle and CLI](docs/durable-storage.md). Rule Engine and durable findings are implemented; see [SEO rules](docs/seo-rules.md). File reports, seek pagination and conservative scan comparison are implemented; see [reports and CLI](docs/reports.md). Authenticated API is implemented; see [auth and API setup](docs/api-auth.md). Browser UI remains EPIC-08; configure admin credentials and HTTPS before browser access. See [HTTP client](docs/http-client.md) and [discovery CLI](docs/discovery.md).
+
+## Development
+
+See [development runbook](docs/development.md), [architecture decisions](docs/DECISIONS.md), and [skill security review](docs/skill-security.md).
+
+EPIC-01…07 branch consolidation and verification: [sum1-7 results](docs/SUM1-7-RESULTS.md).
+
+```bash
+npm ci --ignore-scripts
+npm run check
+npm run smoke
+```
